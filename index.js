@@ -158,6 +158,11 @@ const playBtn = document.getElementById('play-btn');
 const loopBtn = document.getElementById('loop-btn');
 const upload = document.getElementById('audio-upload');
 const downloadBtn = document.getElementById('download-btn');
+const exportProgressPanel = document.getElementById('export-progress-panel');
+const exportProgressFill = document.getElementById('export-progress-fill');
+const exportProgressText = document.getElementById('export-progress-text');
+const exportStatusText = document.getElementById('export-status-text');
+const exportCancelBtn = document.getElementById('export-cancel-btn');
 const trackName = document.getElementById('track-name');
 const timeDisplay = document.getElementById('time-display');
 const progressBar = document.getElementById('progress-bar');
@@ -178,6 +183,33 @@ function setProgressBarValue(value) {
     const clampedValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
     if (progressBar) progressBar.value = clampedValue;
     if (progressPercent) progressPercent.innerText = `${Math.round(clampedValue)}%`;
+}
+
+let activeExportJob = null;
+
+function setExportProgress(value, statusText) {
+    const clampedValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+    if (exportProgressFill) exportProgressFill.style.width = `${clampedValue}%`;
+    if (exportProgressText) exportProgressText.innerText = `${Math.round(clampedValue)}%`;
+    if (exportStatusText && statusText) exportStatusText.innerText = statusText;
+}
+
+function showExportProgress(statusText = 'WAV 내보내기 준비 중') {
+    if (exportProgressPanel) exportProgressPanel.classList.remove('hidden');
+    if (exportCancelBtn) exportCancelBtn.disabled = false;
+    setExportProgress(0, statusText);
+}
+
+function hideExportProgress(delay = 0) {
+    window.setTimeout(() => {
+        if (exportProgressPanel) exportProgressPanel.classList.add('hidden');
+        setExportProgress(0, 'WAV 내보내기 준비 중');
+    }, delay);
+}
+
+function setDownloadButtonEnabled(enabled) {
+    if (!downloadBtn) return;
+    downloadBtn.disabled = !enabled;
 }
 
 // Helper to check play/bypass states in effectors
@@ -1124,53 +1156,87 @@ function convertAudioBufferToWavBlob(buffer) {
 }
 
 // Lossless bounce export
+if (exportCancelBtn) {
+    exportCancelBtn.onclick = () => {
+        if (!activeExportJob) return;
+        activeExportJob.cancelled = true;
+        if (activeExportJob.timer) window.clearInterval(activeExportJob.timer);
+        if (exportCancelBtn) exportCancelBtn.disabled = true;
+        setExportProgress(activeExportJob.lastProgress || 0, 'WAV 내보내기 중지됨');
+        trackName.innerText = "WAV 내보내기가 중지되었습니다.";
+        activeExportJob = null;
+        setDownloadButtonEnabled(Boolean(originalBuffer));
+        hideExportProgress(1000);
+    };
+}
+
 downloadBtn.onclick = async () => {
-    if (!originalBuffer) return;
+    if (!originalBuffer || activeExportJob) return;
 
-    trackName.innerText = "📥 [WAV 고속 내보내기] 오버샘플링 하드웨어 배음 데이터 영구 압축 바운싱 중...";
-    downloadBtn.disabled = true;
-    setProgressBarValue(0);
+    const job = {
+        id: Date.now(),
+        cancelled: false,
+        timer: null,
+        lastProgress: 0
+    };
+    activeExportJob = job;
 
-    const offlineCtx = new OfflineAudioContext(
-        originalBuffer.numberOfChannels,
-        originalBuffer.length,
-        originalBuffer.sampleRate
-    );
+    trackName.innerText = "WAV 내보내기를 백그라운드에서 시작했습니다.";
+    setDownloadButtonEnabled(false);
+    showExportProgress('WAV 렌더링 준비 중');
 
-    const offlineSource = offlineCtx.createBufferSource();
-    offlineSource.buffer = originalBuffer;
+    try {
+        const offlineCtx = new OfflineAudioContext(
+            originalBuffer.numberOfChannels,
+            originalBuffer.length,
+            originalBuffer.sampleRate
+        );
 
-    const offlineOutput = await compileAudioGraph(offlineCtx, offlineSource);
-    offlineOutput.connect(offlineCtx.destination);
-    
-    offlineSource.start(0);
+        const offlineSource = offlineCtx.createBufferSource();
+        offlineSource.buffer = originalBuffer;
 
-    let exportProgressTimer = null;
-    const renderDuration = originalBuffer.duration || 1;
-    exportProgressTimer = window.setInterval(() => {
-        const renderPercent = (offlineCtx.currentTime / renderDuration) * 95;
-        setProgressBarValue(renderPercent);
-    }, 100);
+        const offlineOutput = await compileAudioGraph(offlineCtx, offlineSource);
+        if (job.cancelled) return;
 
-    offlineCtx.startRendering().then(function(renderedBuffer) {
-        if (exportProgressTimer) window.clearInterval(exportProgressTimer);
-        setProgressBarValue(95);
+        offlineOutput.connect(offlineCtx.destination);
+        offlineSource.start(0);
+
+        const renderDuration = originalBuffer.duration || 1;
+        job.timer = window.setInterval(() => {
+            if (job.cancelled) return;
+            const renderPercent = Math.min(94, (offlineCtx.currentTime / renderDuration) * 94);
+            job.lastProgress = renderPercent;
+            setExportProgress(renderPercent, 'WAV 렌더링 중');
+        }, 100);
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        if (job.timer) window.clearInterval(job.timer);
+        if (job.cancelled || activeExportJob !== job) return;
+
+        setExportProgress(96, 'WAV 파일 생성 중');
         const wavBlob = convertAudioBufferToWavBlob(renderedBuffer);
+        if (job.cancelled || activeExportJob !== job) return;
+
         const url = URL.createObjectURL(wavBlob);
-        
         const link = document.createElement('a');
         link.href = url;
         link.download = "AI_HiRes_Mastered_Output.wav";
         link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-        setProgressBarValue(100);
+        setExportProgress(100, 'WAV 내보내기 완료');
         trackName.innerText = "추출 성공: 파일 저장이 완료되었습니다.";
-        downloadBtn.disabled = false;
-    }).catch(err => {
-        if (exportProgressTimer) window.clearInterval(exportProgressTimer);
+        activeExportJob = null;
+        setDownloadButtonEnabled(Boolean(originalBuffer));
+        hideExportProgress(1200);
+    } catch (err) {
+        if (job.timer) window.clearInterval(job.timer);
+        if (activeExportJob === job) activeExportJob = null;
+        setExportProgress(job.lastProgress || 0, 'WAV 내보내기 실패');
         alert("인코딩 중 에러가 발생했습니다.");
-        downloadBtn.disabled = false;
-    });
+        setDownloadButtonEnabled(Boolean(originalBuffer));
+        hideExportProgress(1600);
+    }
 };
 
 function animateSpectrum() {
