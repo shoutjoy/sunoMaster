@@ -1,277 +1,417 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 멀티 스템 마스터링 스튜디오 v9.0 (Ultimate Audio Engine)</title>
+    <title> 멀티 마스터링 스튜디오 v10.1 (Ultimate Audio Engine By JD & Jena)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="index.css">
 </head>
+
 <body class="text-gray-200 min-h-screen p-3 md:p-6 font-sans select-none">
 
     <div class="max-w-7xl mx-auto space-y-4">
-        
-        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#090d16] p-5 rounded-2xl border border-gray-800 shadow-2xl gap-4">
+
+        <header
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#090d16] p-5 rounded-2xl border border-gray-800 shadow-2xl gap-4">
             <div>
                 <h1 class="text-xl font-bold text-white flex items-center gap-3">
                     <i class="fa-solid fa-layer-group text-blue-500 animate-pulse"></i>
-                    AI 멀티 스템 마스터링 워크스테이션 <span class="text-xs bg-indigo-600 px-2 py-0.5 rounded text-white font-normal">v9.0 Engine Max</span>
+                    AI 멀티 스템 마스터링 워크스테이션 <span
+                        class="text-xs bg-indigo-600 px-2 py-0.5 rounded text-white font-normal">v9.0 Engine Max</span>
                 </h1>
                 <p class="text-xs text-gray-400 mt-1">4배 오버샘플링 배음 익사이터 하이엔드 인코딩 파이프라인 탑재</p>
             </div>
             <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                <button id="theme-toggle" type="button" aria-pressed="false" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
+                <button id="theme-toggle" type="button" aria-pressed="false"
+                    class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
                     <i id="theme-icon" class="fa-solid fa-sun"></i> <span id="theme-label">Light</span>
                 </button>
-                <button id="reset-all-btn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
+                <button id="reset-all-btn"
+                    class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
                     <i class="fa-solid fa-rotate-left"></i> 콘솔 초기화
                 </button>
-                <label class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-semibold text-center text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
+                <label
+                    class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-semibold text-center text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
                     <i class="fa-solid fa-upload"></i> 음원 업로드
                     <input type="file" id="audio-upload" accept="audio/*" class="hidden">
                 </label>
-                <button id="download-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg opacity-30 cursor-not-allowed" disabled>
+                <button id="download-btn"
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg opacity-30 cursor-not-allowed"
+                    disabled>
                     <i class="fa-solid fa-download"></i> 무손실 WAV 내보내기
                 </button>
             </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            
+
             <div class="lg:col-span-4 space-y-5">
-                
+
                 <!-- PROJECT MANAGEMENT DASHBOARD -->
                 <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
-                    <div id="project-header" class="flex items-center justify-between border-b border-gray-800 pb-2 cursor-pointer select-none">
+                    <div id="project-header"
+                        class="flex items-center justify-between border-b border-gray-800 pb-2 cursor-pointer select-none">
                         <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
                             <i class="fa-solid fa-folder-open text-blue-500 animate-pulse"></i>
                             프로젝트 매니저
                         </h3>
-                        <button id="project-collapse-btn" type="button" class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
+                        <button id="project-collapse-btn" type="button"
+                            class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
                             <i id="project-collapse-icon" class="fa-solid fa-chevron-down"></i>
                         </button>
                     </div>
                     <div id="project-collapse-content" class="space-y-3 transition-all duration-300 hidden">
                         <div class="grid grid-cols-2 gap-2">
-                            <button id="project-save-db" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/10 hover:shadow-indigo-500/20">
+                            <button id="project-save-db"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/10 hover:shadow-indigo-500/20">
                                 <i class="fa-solid fa-floppy-disk"></i> DB 저장
                             </button>
                             <div class="relative w-full">
-                                <select id="project-load-db" class="w-full bg-[#03050a] border border-gray-800 rounded-xl px-2 py-2 text-[11px] text-gray-300 outline-none hover:border-gray-750 focus:border-indigo-500 transition cursor-pointer">
+                                <select id="project-load-db"
+                                    class="w-full bg-[#03050a] border border-gray-800 rounded-xl px-2 py-2 text-[11px] text-gray-300 outline-none hover:border-gray-750 focus:border-indigo-500 transition cursor-pointer">
                                     <option value="">DB 불러오기...</option>
                                 </select>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <button id="project-export-jjd" class="bg-gray-800/80 hover:bg-gray-700/95 hover:text-white border border-gray-800/50 text-gray-300 font-semibold text-xs px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                            <button id="project-export-jjd"
+                                class="bg-gray-800/80 hover:bg-gray-700/95 hover:text-white border border-gray-800/50 text-gray-300 font-semibold text-xs px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-file-export text-amber-500"></i> 내보내기 (.jjd)
                             </button>
-                            <label class="cursor-pointer bg-gray-800/80 hover:bg-gray-700/95 hover:text-white border border-gray-800/50 text-gray-300 font-semibold text-center text-xs px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                            <label
+                                class="cursor-pointer bg-gray-800/80 hover:bg-gray-700/95 hover:text-white border border-gray-800/50 text-gray-300 font-semibold text-center text-xs px-3 py-2 rounded-xl transition flex items-center justify-center gap-1.5">
                                 <i class="fa-solid fa-file-import text-teal-400"></i> 불러오기 (.jjd)
                                 <input type="file" id="project-import-jjd" accept=".jjd" class="hidden">
                             </label>
                         </div>
-                        
+
                         <!-- Auto-Save Settings -->
-                        <div class="flex items-center justify-between bg-[#03050a] p-2 rounded-xl border border-gray-850 text-xs">
+                        <div
+                            class="flex items-center justify-between bg-[#03050a] p-2 rounded-xl border border-gray-850 text-xs">
                             <div class="flex items-center gap-1.5 font-medium text-gray-400">
                                 <i id="autosave-icon" class="fa-solid fa-clock text-gray-500"></i>
                                 <span>자동 저장</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="flex items-center gap-1 font-mono text-[11px] text-gray-500">
-                                    <input type="number" id="autosave-interval" value="5" min="1" max="120" class="w-10 bg-gray-950 border border-gray-800 rounded text-center text-gray-300 outline-none focus:border-indigo-500 py-0.5">
+                                    <input type="number" id="autosave-interval" value="5" min="1" max="120"
+                                        class="w-10 bg-gray-950 border border-gray-800 rounded text-center text-gray-300 outline-none focus:border-indigo-500 py-0.5">
                                     <span>분</span>
                                 </div>
-                                <button id="autosave-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OFF</button>
+                                <button id="autosave-toggle" type="button" aria-pressed="false"
+                                    class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OFF</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 업로드 활성화 설정 -->
+                        <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-850 space-y-2 text-xs">
+                            <div class="font-bold text-gray-300 pb-1 border-b border-gray-800/60 flex items-center gap-1.5">
+                                <i class="fa-solid fa-gear text-blue-500"></i>
+                                <span>음원 업로드 시 활성화 설정</span>
+                            </div>
+                            <div class="space-y-1.5 pl-1">
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-250 select-none">
+                                    <input type="checkbox" id="cfg-seek-bar" checked
+                                        class="rounded bg-gray-950 border-gray-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-900 h-3.5 w-3.5 cursor-pointer">
+                                    <span>구간 이동 게이지 활성화</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-250 select-none">
+                                    <input type="checkbox" id="cfg-tube-exciter" checked
+                                        class="rounded bg-gray-950 border-gray-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-900 h-3.5 w-3.5 cursor-pointer">
+                                    <span>4배 오버샘플링 진공관 활성화</span>
+                                </label>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 relative overflow-hidden h-60 flex flex-col justify-between shadow-xl">
+                <div
+                    class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 relative overflow-hidden h-60 flex flex-col justify-between shadow-xl">
                     <div class="flex justify-between items-center z-10">
-                        <span class="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded font-mono font-bold tracking-wider">REAL-TIME FFT OCTAVE ANALYSER</span>
+                        <span
+                            class="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded font-mono font-bold tracking-wider">REAL-TIME
+                            FFT OCTAVE ANALYSER</span>
                         <div class="flex items-center gap-1.5">
                             <span class="text-[9px] font-mono text-gray-400">CLIP</span>
-                            <div id="clip-led" class="w-2.5 h-2.5 bg-gray-900 rounded-full border border-gray-900 transition-all duration-75"></div>
+                            <div id="clip-led"
+                                class="w-2.5 h-2.5 bg-gray-900 rounded-full border border-gray-900 transition-all duration-75">
+                            </div>
                         </div>
                     </div>
-                    
+
                     <canvas id="visualizer" class="w-full h-32 mt-2 z-10"></canvas>
-                    
+
                     <div class="w-full space-y-1 z-10 mt-1 bg-[#03050a]/60 p-2 rounded-lg border border-gray-950">
                         <input type="range" id="progress-bar" min="0" max="100" value="0" disabled>
                     </div>
 
-                    <div id="track-name" class="text-[11px] text-blue-400/80 font-mono truncate text-center z-10">Waiting for audio source signal...</div>
+                    <div id="track-name" class="text-[11px] text-blue-400/80 font-mono truncate text-center z-10">
+                        Waiting for audio source signal...</div>
                 </div>
 
                 <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-2">
-                            <button id="play-btn" class="w-11 h-11 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-md transition shadow-lg opacity-40 cursor-not-allowed" disabled>
+                            <button id="play-btn"
+                                class="w-11 h-11 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-md transition shadow-lg opacity-40 cursor-not-allowed"
+                                disabled>
                                 <i class="fa-solid fa-play ml-0.5"></i>
                             </button>
-                            <button id="loop-btn" type="button" aria-pressed="false" class="w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 text-sm transition border border-gray-700" title="Loop playback">
+                            <button id="loop-btn" type="button" aria-pressed="false"
+                                class="w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 text-sm transition border border-gray-700"
+                                title="Loop playback">
                                 <i class="fa-solid fa-repeat"></i>
                             </button>
                         </div>
                         <div class="text-xs text-gray-400 font-mono" id="time-display">00:00 / 00:00</div>
-                        
+
                         <div class="bg-[#03050a] p-1 rounded-xl flex border border-gray-800 text-[11px] font-medium">
-                            <button id="bypass-a" class="px-2.5 py-1 rounded-md transition text-gray-400 hover:text-white">A:RAW</button>
-                            <button id="bypass-b" class="px-2.5 py-1 rounded-md bg-blue-600 text-white shadow-md">B:MASTER</button>
+                            <button id="bypass-a"
+                                class="px-2.5 py-1 rounded-md transition text-gray-400 hover:text-white">A:RAW</button>
+                            <button id="bypass-b"
+                                class="px-2.5 py-1 rounded-md bg-blue-600 text-white shadow-md">B:MASTER</button>
                         </div>
-                    </div>
-                    
-                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
-                        <div class="flex justify-between text-xs font-bold">
-                            <span class="text-red-400 text-[11px]"><i class="fa-solid fa-volume-high mr-1"></i> MASTER OUT GAIN</span>
-                            <span id="master-val" class="text-red-400 font-mono text-[11px]">100 %</span>
-                        </div>
-                        <input type="range" id="master-volume" min="0" max="150" value="100" class="w-full h-1.5 rounded appearance-none accent-red-500">
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
-                        <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>SIGNAL OUTPUT LEVEL (LUFS/RMS)</span><span id="lufs-text">-inf dB</span></div>
-                        <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative border border-gray-950">
-                            <div id="lufs-bar" class="h-full w-0 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 transition-all duration-75"></div>
+                        <div class="flex justify-between text-xs font-bold">
+                            <span class="text-red-400 text-[11px]"><i class="fa-solid fa-volume-high mr-1"></i> MASTER
+                                OUT GAIN</span>
+                            <span id="master-val" class="text-red-400 font-mono text-[11px]">100 %</span>
+                        </div>
+                        <input type="range" id="master-volume" min="0" max="150" value="100"
+                            class="w-full h-1.5 rounded appearance-none accent-red-500">
+                    </div>
+
+                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
+                        <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>SIGNAL OUTPUT LEVEL
+                                (LUFS/RMS)</span><span id="lufs-text">-inf dB</span></div>
+                        <div
+                            class="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative border border-gray-950">
+                            <div id="lufs-bar"
+                                class="h-full w-0 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 transition-all duration-75">
+                            </div>
                         </div>
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
-                            <span class="text-violet-400 text-[11px]"><i class="fa-solid fa-wave-square mr-1"></i> MASTER REVERB</span>
-                            <button id="reverb-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
+                            <span class="text-violet-400 text-[11px]"><i class="fa-solid fa-wave-square mr-1"></i>
+                                MASTER REVERB</span>
+                            <button id="reverb-toggle" type="button" aria-pressed="false"
+                                class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
                         </div>
-                        <select id="reverb-preset" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
-                            <option value="">Reverb Preset</option>
-                        </select>
+                        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                            <select id="reverb-preset"
+                                class="bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
+                                <option value="">Reverb Preset</option>
+                            </select>
+                            <div class="flex gap-1">
+                                <input id="reverb-template-name" type="text" placeholder="Name"
+                                    class="min-w-0 w-full sm:w-24 bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
+                                <button id="reverb-template-save" type="button"
+                                    class="bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition">SAVE</button>
+                            </div>
+                        </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-violet-400">PRE DELAY</span><span id="reverb-predelay-val" class="text-violet-400 font-mono">20 ms</span>
+                                    <span class="text-violet-400">PRE DELAY</span><span id="reverb-predelay-val"
+                                        class="text-violet-400 font-mono">20 ms</span>
                                 </div>
-                                <input type="range" id="reverb-predelay" min="0" max="150" value="20" step="1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                                <input type="range" id="reverb-predelay" min="0" max="150" value="20" step="1"
+                                    class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-violet-400">DECAY</span><span id="reverb-decay-val" class="text-violet-400 font-mono">1.2 s</span>
+                                    <span class="text-violet-400">DECAY</span><span id="reverb-decay-val"
+                                        class="text-violet-400 font-mono">1.2 s</span>
                                 </div>
-                                <input type="range" id="reverb-decay" min="0.3" max="12" value="1.2" step="0.1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                                <input type="range" id="reverb-decay" min="0.3" max="12" value="1.2" step="0.1"
+                                    class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-violet-400">DIFFUSION</span><span id="reverb-diffusion-val" class="text-violet-400 font-mono">70 %</span>
+                                    <span class="text-violet-400">DIFFUSION</span><span id="reverb-diffusion-val"
+                                        class="text-violet-400 font-mono">70 %</span>
                                 </div>
-                                <input type="range" id="reverb-diffusion" min="0" max="100" value="70" step="1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                                <input type="range" id="reverb-diffusion" min="0" max="100" value="70" step="1"
+                                    class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-violet-400">MIX</span><span id="reverb-mix-val" class="text-violet-400 font-mono">15 %</span>
+                                    <span class="text-violet-400">MIX</span><span id="reverb-mix-val"
+                                        class="text-violet-400 font-mono">15 %</span>
                                 </div>
-                                <input type="range" id="reverb-mix" min="0" max="100" value="15" step="1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                                <input type="range" id="reverb-mix" min="0" max="100" value="15" step="1"
+                                    class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-violet-400">LOW EQ</span><span id="reverb-low-val" class="text-violet-400 font-mono">-2 dB</span>
+                                    <span class="text-violet-400">LOW EQ</span><span id="reverb-low-val"
+                                        class="text-violet-400 font-mono">-2 dB</span>
                                 </div>
-                                <input type="range" id="reverb-low" min="-12" max="6" value="-2" step="0.5" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                                <input type="range" id="reverb-low" min="-12" max="6" value="-2" step="0.5"
+                                    class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-violet-400">HIGH EQ</span><span id="reverb-high-val" class="text-violet-400 font-mono">1 dB</span>
+                                    <span class="text-violet-400">HIGH EQ</span><span id="reverb-high-val"
+                                        class="text-violet-400 font-mono">1 dB</span>
                                 </div>
-                                <input type="range" id="reverb-high" min="-12" max="6" value="1" step="0.5" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                                <input type="range" id="reverb-high" min="-12" max="6" value="1" step="0.5"
+                                    class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
                             </div>
                         </div>
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
-                            <span class="text-cyan-400 text-[11px]"><i class="fa-solid fa-compress mr-1.5"></i> MASTER COMPRESSOR</span>
-                            <button id="compressor-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
+                            <span class="text-cyan-400 text-[11px]"><i class="fa-solid fa-compress mr-1.5"></i> MASTER
+                                COMPRESSOR</span>
+                            <button id="compressor-toggle" type="button" aria-pressed="false"
+                                class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
                         </div>
                         <div class="space-y-1">
-                            <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>GAIN REDUCTION</span><span id="comp-gr-val">0.0 dB</span></div>
-                            <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative border border-gray-950">
-                                <div id="comp-gr-bar" class="h-full w-0 bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-75"></div>
+                            <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>GAIN
+                                    REDUCTION</span><span id="comp-gr-val">0.0 dB</span></div>
+                            <div
+                                class="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative border border-gray-950">
+                                <div id="comp-gr-bar"
+                                    class="h-full w-0 bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-75">
+                                </div>
                             </div>
                         </div>
                         <div class="bg-gray-900 rounded-lg border border-gray-800 p-2">
                             <canvas id="comp-curve" class="w-full h-44 block"></canvas>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                            <select id="comp-template-select" class="bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
+                            <select id="comp-template-select"
+                                class="bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
                                 <option value="">Template</option>
                             </select>
                             <div class="flex gap-1">
-                                <input id="comp-template-name" type="text" placeholder="Name" class="min-w-0 w-full sm:w-24 bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
-                                <button id="comp-template-save" type="button" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition">SAVE</button>
+                                <input id="comp-template-name" type="text" placeholder="Name"
+                                    class="min-w-0 w-full sm:w-24 bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
+                                <button id="comp-template-save" type="button"
+                                    class="bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition">SAVE</button>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-cyan-400">THRESHOLD</span><span id="comp-threshold-val" class="text-cyan-400 font-mono">-24 dB</span>
+                                    <span class="text-cyan-400">INPUT GAIN</span><span id="comp-inputgain-val"
+                                        class="text-cyan-400 font-mono">0 dB</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-threshold" data-dir="-1">-</button>
-                                    <input type="range" id="comp-threshold" min="-60" max="0" value="-24" step="1" class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-threshold" data-dir="1">+</button>
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-inputgain" data-dir="-1">-</button>
+                                    <input type="range" id="comp-inputgain" min="-12" max="12" value="0" step="0.5"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-inputgain" data-dir="1">+</button>
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-cyan-400">RATIO</span><span id="comp-ratio-val" class="text-cyan-400 font-mono">4.0:1</span>
+                                    <span class="text-cyan-400">THRESHOLD</span><span id="comp-threshold-val"
+                                        class="text-cyan-400 font-mono">-24 dB</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-ratio" data-dir="-1">-</button>
-                                    <input type="range" id="comp-ratio" min="1" max="20" value="4" step="0.1" class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-ratio" data-dir="1">+</button>
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-threshold" data-dir="-1">-</button>
+                                    <input type="range" id="comp-threshold" min="-60" max="0" value="-24" step="1"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-threshold" data-dir="1">+</button>
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-cyan-400">ATTACK</span><span id="comp-attack-val" class="text-cyan-400 font-mono">3 ms</span>
+                                    <span class="text-cyan-400">RATIO</span><span id="comp-ratio-val"
+                                        class="text-cyan-400 font-mono">4.0:1</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-attack" data-dir="-1">-</button>
-                                    <input type="range" id="comp-attack" min="0" max="1" value="0.003" step="0.001" class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-attack" data-dir="1">+</button>
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-ratio" data-dir="-1">-</button>
+                                    <input type="range" id="comp-ratio" min="1" max="20" value="4" step="0.1"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-ratio" data-dir="1">+</button>
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-cyan-400">RELEASE</span><span id="comp-release-val" class="text-cyan-400 font-mono">250 ms</span>
+                                    <span class="text-cyan-400">ATTACK</span><span id="comp-attack-val"
+                                        class="text-cyan-400 font-mono">3 ms</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-release" data-dir="-1">-</button>
-                                    <input type="range" id="comp-release" min="0.01" max="1" value="0.25" step="0.01" class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-release" data-dir="1">+</button>
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-attack" data-dir="-1">-</button>
+                                    <input type="range" id="comp-attack" min="0" max="1" value="0.003" step="0.001"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-attack" data-dir="1">+</button>
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-cyan-400">KNEE</span><span id="comp-knee-val" class="text-cyan-400 font-mono">30 dB</span>
+                                    <span class="text-cyan-400">RELEASE</span><span id="comp-release-val"
+                                        class="text-cyan-400 font-mono">250 ms</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-knee" data-dir="-1">-</button>
-                                    <input type="range" id="comp-knee" min="0" max="40" value="30" step="1" class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-knee" data-dir="1">+</button>
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-release" data-dir="-1">-</button>
+                                    <input type="range" id="comp-release" min="0.01" max="1" value="0.25" step="0.01"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-release" data-dir="1">+</button>
                                 </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-cyan-400">MAKE UP</span><span id="comp-makeup-val" class="text-cyan-400 font-mono">6 dB</span>
+                                    <span class="text-cyan-400">KNEE</span><span id="comp-knee-val"
+                                        class="text-cyan-400 font-mono">30 dB</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-makeup" data-dir="-1">-</button>
-                                    <input type="range" id="comp-makeup" min="0" max="24" value="6" step="0.5" class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
-                                    <button type="button" class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800" data-target="comp-makeup" data-dir="1">+</button>
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-knee" data-dir="-1">-</button>
+                                    <input type="range" id="comp-knee" min="0" max="40" value="30" step="1"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-knee" data-dir="1">+</button>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-cyan-400">MAKE UP</span><span id="comp-makeup-val"
+                                        class="text-cyan-400 font-mono">6 dB</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-makeup" data-dir="-1">-</button>
+                                    <input type="range" id="comp-makeup" min="0" max="24" value="6" step="0.5"
+                                        class="comp-slider w-full h-1.5 rounded appearance-none accent-cyan-500">
+                                    <button type="button"
+                                        class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="comp-makeup" data-dir="1">+</button>
                                 </div>
                             </div>
                         </div>
@@ -279,82 +419,99 @@
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
-                            <span class="text-lime-400 text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i> LOOKAHEAD LIMITER</span>
-                            <button id="limiter-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
+                            <span class="text-lime-400 text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i>
+                                LOOKAHEAD LIMITER</span>
+                            <button id="limiter-toggle" type="button" aria-pressed="false"
+                                class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
                         </div>
                         <div class="grid grid-cols-3 gap-2">
                             <div class="space-y-1">
-                                <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>IN</span><span id="limiter-in-val">-inf</span></div>
+                                <div class="flex justify-between text-[10px] font-mono text-gray-400">
+                                    <span>IN</span><span id="limiter-in-val">-inf</span></div>
                                 <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-950">
-                                    <div id="limiter-in-bar" class="h-full w-0 bg-gradient-to-r from-lime-500 to-amber-400 transition-all duration-75"></div>
+                                    <div id="limiter-in-bar"
+                                        class="h-full w-0 bg-gradient-to-r from-lime-500 to-amber-400 transition-all duration-75">
+                                    </div>
                                 </div>
                             </div>
                             <div class="space-y-1">
-                                <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>GR</span><span id="limiter-gr-val">0.0 dB</span></div>
+                                <div class="flex justify-between text-[10px] font-mono text-gray-400">
+                                    <span>GR</span><span id="limiter-gr-val">0.0 dB</span></div>
                                 <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-950">
-                                    <div id="limiter-gr-bar" class="h-full w-0 bg-gradient-to-r from-lime-400 to-red-500 transition-all duration-75"></div>
+                                    <div id="limiter-gr-bar"
+                                        class="h-full w-0 bg-gradient-to-r from-lime-400 to-red-500 transition-all duration-75">
+                                    </div>
                                 </div>
                             </div>
                             <div class="space-y-1">
-                                <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>OUT</span><span id="limiter-out-val">-inf</span></div>
+                                <div class="flex justify-between text-[10px] font-mono text-gray-400">
+                                    <span>OUT</span><span id="limiter-out-val">-inf</span></div>
                                 <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-950">
-                                    <div id="limiter-out-bar" class="h-full w-0 bg-gradient-to-r from-lime-500 to-yellow-300 transition-all duration-75"></div>
+                                    <div id="limiter-out-bar"
+                                        class="h-full w-0 bg-gradient-to-r from-lime-500 to-yellow-300 transition-all duration-75">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-2">
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-lime-400">THRESHOLD</span><span id="limiter-threshold-val" class="text-lime-400 font-mono">-1.0 dB</span>
+                                    <span class="text-lime-400">THRESHOLD</span><span id="limiter-threshold-val"
+                                        class="text-lime-400 font-mono">-1.0 dB</span>
                                 </div>
-                                <input type="range" id="limiter-threshold" min="-20" max="0" value="-1" step="0.1" class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                <input type="range" id="limiter-threshold" min="-20" max="0" value="-1" step="0.1"
+                                    class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-lime-400">RELEASE</span><span id="limiter-release-val" class="text-lime-400 font-mono">100 ms</span>
+                                    <span class="text-lime-400">RELEASE</span><span id="limiter-release-val"
+                                        class="text-lime-400 font-mono">100 ms</span>
                                 </div>
-                                <input type="range" id="limiter-release" min="10" max="1000" value="100" step="1" class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                <input type="range" id="limiter-release" min="10" max="1000" value="100" step="1"
+                                    class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="text-lime-400">OUTPUT</span><span id="limiter-output-val" class="text-lime-400 font-mono">0.0 dB</span>
+                                    <span class="text-lime-400">OUTPUT</span><span id="limiter-output-val"
+                                        class="text-lime-400 font-mono">0.0 dB</span>
                                 </div>
-                                <input type="range" id="limiter-output" min="-12" max="6" value="0" step="0.1" class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                <input type="range" id="limiter-output" min="-12" max="6" value="0" step="0.1"
+                                    class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
                             </div>
                         </div>
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
                         <div class="flex justify-between text-xs font-bold">
-                            <span class="text-rose-400 text-[11px]"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> AI NOISE REDUCTION</span>
+                            <span class="text-rose-400 text-[11px]"><i class="fa-solid fa-filter-circle-xmark mr-1"></i>
+                                AI NOISE REDUCTION</span>
                             <span id="noise-val" class="text-rose-400 font-mono text-[11px]">0 %</span>
                         </div>
-                        <input type="range" id="noise-reducer" min="0" max="100" value="0" class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-rose-500">
+                        <input type="range" id="noise-reducer" min="0" max="100" value="0"
+                            class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-rose-500">
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
                         <div class="flex justify-between text-xs font-bold">
-                            <span class="text-sky-400 text-[11px]"><i class="fa-solid fa-scissors mr-1"></i> 지찰음 제어 (De-Esser @6.5kHz)</span>
+                            <span class="text-sky-400 text-[11px]"><i class="fa-solid fa-scissors mr-1"></i> 지찰음 제어
+                                (De-Esser @6.5kHz)</span>
                             <span id="deesser-val" class="text-sky-400 font-mono text-[11px]">0 %</span>
                         </div>
-                        <input type="range" id="deesser-reducer" min="0" max="100" value="0" class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-sky-500">
+                        <input type="range" id="deesser-reducer" min="0" max="100" value="0"
+                            class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-sky-500">
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
                         <div class="flex justify-between text-xs font-bold">
-                            <span class="text-amber-400 text-[11px]"><i class="fa-solid fa-fire-flame-curved mr-1"></i> 진공관 배음 익사이터 (4x Oversampled)</span>
+                            <span class="text-amber-400 text-[11px]"><i class="fa-solid fa-fire-flame-curved mr-1"></i>
+                                진공관 배음 익사이터 (4x Oversampled)</span>
                             <span id="saturator-val" class="text-amber-400 font-mono text-[11px]">0 %</span>
                         </div>
-                        <input type="range" id="saturator-volume" min="0" max="100" value="0" class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-amber-500">
+                        <input type="range" id="saturator-volume" min="0" max="100" value="0"
+                            class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-amber-500">
                     </div>
                 </div>
 
-                <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-2 shadow-xl">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fa-solid fa-compact-disc text-blue-400"></i> AI 100-Preset Mastering Library
-                    </h3>
-                    <div class="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto pr-1 text-[10px]" id="genre-grid"></div>
-                </div>
             </div>
 
             <div class="lg:col-span-8 space-y-5">
@@ -376,17 +533,21 @@
                     <div class="flex justify-between items-center border-b border-gray-800 pb-2">
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-server text-purple-400"></i> AI 20-Channel Stem Automator Console
-                            <span id="detector-status" class="text-xs text-blue-400 font-mono font-normal ml-2">(추출 대기 중)</span>
+                            <span id="detector-status" class="text-xs text-blue-400 font-mono font-normal ml-2">(추출 대기
+                                중)</span>
                         </h3>
                         <div class="flex items-center gap-2">
-                            <button id="stems-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
-                            <button id="stems-collapse-btn" type="button" class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
+                            <button id="stems-toggle" type="button" aria-pressed="false"
+                                class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
+                            <button id="stems-collapse-btn" type="button"
+                                class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
                                 <i id="stems-collapse-icon" class="fa-solid fa-chevron-down"></i>
                             </button>
                         </div>
                     </div>
                     <div id="stems-collapse-content" class="transition-all duration-300 hidden">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[420px] overflow-y-auto pr-1 mt-3" id="stems-matrix-container"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[420px] overflow-y-auto pr-1 mt-3"
+                            id="stems-matrix-container"></div>
                     </div>
                 </div>
 
@@ -394,24 +555,37 @@
                 <div class="bg-[#090d16] p-5 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
                     <div class="flex justify-between items-center border-b border-gray-800 pb-2">
                         <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-chart-simple text-emerald-400"></i> 10-Band Graphic Parametric Equalizer
+                            <i class="fa-solid fa-chart-simple text-emerald-400"></i> 10-Band Graphic Parametric
+                            Equalizer
                         </h3>
                         <div class="flex items-center gap-2">
-                            <button id="eq-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
-                            <button id="eq-collapse-btn" type="button" class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
+                            <button id="eq-toggle" type="button" aria-pressed="false"
+                                class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
+                            <button id="eq-collapse-btn" type="button"
+                                class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
                                 <i id="eq-collapse-icon" class="fa-solid fa-chevron-up"></i>
                             </button>
                         </div>
                     </div>
                     <div id="eq-collapse-content" class="space-y-3 transition-all duration-300">
-                        <div class="flex justify-between items-center h-40 bg-[#03050a] p-4 rounded-xl border border-gray-800 gap-1 overflow-x-auto">
-                            <div class="flex flex-col items-center h-full justify-between text-[9px] text-gray-500 font-mono pr-2 select-none">
+                        <div
+                            class="flex justify-between items-center h-40 bg-[#03050a] p-4 rounded-xl border border-gray-800 gap-1 overflow-x-auto">
+                            <div
+                                class="flex flex-col items-center h-full justify-between text-[9px] text-gray-500 font-mono pr-2 select-none">
                                 <span>+12</span><span>0</span><span>-12</span>
                             </div>
                             <div class="flex justify-around items-center flex-1 h-full" id="eq-sliders-container"></div>
                         </div>
                         <div id="post-eq-effects" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
                     </div>
+                </div>
+
+                <!-- AI 100-Preset Mastering Library -->
+                <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-2 shadow-xl">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-compact-disc text-blue-400"></i> AI 100-Preset Mastering Library
+                    </h3>
+                    <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1 text-xs" id="genre-grid"></div>
                 </div>
             </div>
 
@@ -420,4 +594,5 @@
 
     <script type="module" src="index.js"></script>
 </body>
+
 </html>

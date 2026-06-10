@@ -96,15 +96,16 @@ const audioState = {
     saturatorEnabled: false,
     reverb: {
         enabled: false,
-        preDelay: 20,
-        decay: 1.2,
-        diffusion: 70,
-        lowGain: -2,
-        highGain: 1,
-        mix: 15
+        preDelay: 105,
+        decay: 1.8,
+        diffusion: 58,
+        lowGain: -1,
+        highGain: 1.5,
+        mix: 22
     },
     compressor: {
         enabled: false,
+        inputGain: 0,
         threshold: -24,
         ratio: 4,
         attack: 0.003,
@@ -204,10 +205,25 @@ buildInitialStemMatrixUI();
 
 // UI 3: 100가지 스타일 라이브러리 드로우
 const genreGrid = document.getElementById('genre-grid');
+
+// "선택 안 함" (None) 버튼 추가
+const noneBtn = document.createElement('button');
+noneBtn.className = `preset-btn genre-active`;
+noneBtn.innerHTML = `<span class="preset-num">-</span>선택 안 함 (Flat)`;
+noneBtn.onclick = () => {
+    document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
+    noneBtn.classList.add('genre-active');
+    
+    eq.frequencies.forEach((_, idx) => {
+        eq.setEQValue(idx, 0, audioCtx, getPlayState, getBypassState);
+    });
+};
+genreGrid.appendChild(noneBtn);
+
 presetNames.forEach((name, i) => {
     const btn = document.createElement('button');
-    btn.className = `p-1.5 rounded border text-left font-medium transition bg-[#0d1322] border-gray-900 text-gray-400 hover:border-gray-800 truncate`;
-    btn.innerHTML = `<span class="opacity-30 mr-1 font-mono">${i+1}.</span>${name}`;
+    btn.className = `preset-btn`;
+    btn.innerHTML = `<span class="preset-num">${i+1}.</span>${name}`;
     btn.onclick = () => {
         document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
         btn.classList.add('genre-active');
@@ -301,7 +317,7 @@ function drawAudioWaveform(progress = waveformProgress) {
     const bg = isLight ? '#eef3f8' : '#03050a';
     const grid = isLight ? 'rgba(71, 85, 105, 0.18)' : 'rgba(148, 163, 184, 0.12)';
     const idle = isLight ? '#94a3b8' : '#334155';
-    const played = '#22d3ee';
+    const played = isLight ? '#0284c7' : '#22d3ee';
     const centerY = height / 2;
     const padY = 10 * dpr;
 
@@ -338,7 +354,7 @@ function drawAudioWaveform(progress = waveformProgress) {
         ctx2.fillRect(x, centerY - (barH / 2), barW, barH);
     }
 
-    ctx2.fillStyle = 'rgba(34, 211, 238, 0.12)';
+    ctx2.fillStyle = isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(34, 211, 238, 0.12)';
     ctx2.fillRect(0, 0, playX, height);
 
     ctx2.strokeStyle = '#f59e0b';
@@ -444,6 +460,9 @@ function updateCompressorRangeFills() {
     document.querySelectorAll('.reverb-slider').forEach(input => updateRangeFill(input, '#a855f7'));
     document.querySelectorAll('.limiter-slider').forEach(input => updateRangeFill(input, '#84cc16'));
     updateRangeFill(document.getElementById('master-volume'), '#f43f5e');
+    updateRangeFill(document.getElementById('noise-reducer'), '#f43f5e');
+    updateRangeFill(document.getElementById('deesser-reducer'), '#0ea5e9');
+    updateRangeFill(document.getElementById('saturator-volume'), '#f59e0b');
 }
 
 async function compileAudioGraph(context, srcNode) {
@@ -643,12 +662,33 @@ function bindLiveControlTriggers() {
 
 reverb.populatePresets('reverb-preset');
 reverb.syncInputs();
+const reverbPresetSelectInit = document.getElementById('reverb-preset');
+if (reverbPresetSelectInit) reverbPresetSelectInit.value = "default:default_reverb";
 reverb.updateUI(updateCompressorRangeFills);
 setupPostEqUtilityEffects();
 compressor.populateTemplates('comp-template-select');
 compressor.updateUI(updateCompressorRangeFills);
 limiter.updateUI(updateCompressorRangeFills);
 bindLiveControlTriggers();
+
+// Load upload activation preference configurations
+const cfgSeekBar = document.getElementById('cfg-seek-bar');
+const cfgTubeExciter = document.getElementById('cfg-tube-exciter');
+
+if (cfgSeekBar) {
+    const saved = localStorage.getItem('jd-cfg-seek-bar');
+    cfgSeekBar.checked = saved !== null ? (saved === 'true') : true;
+    cfgSeekBar.onchange = () => {
+        localStorage.setItem('jd-cfg-seek-bar', String(cfgSeekBar.checked));
+    };
+}
+if (cfgTubeExciter) {
+    const saved = localStorage.getItem('jd-cfg-tube-exciter');
+    cfgTubeExciter.checked = saved !== null ? (saved === 'true') : true;
+    cfgTubeExciter.onchange = () => {
+        localStorage.setItem('jd-cfg-tube-exciter', String(cfgTubeExciter.checked));
+    };
+}
 
 // Master Reset console
 document.getElementById('reset-all-btn').onclick = () => {
@@ -666,15 +706,16 @@ document.getElementById('reset-all-btn').onclick = () => {
     updateLoopButton();
     audioState.reverb = {
         enabled: false,
-        preDelay: 20,
-        decay: 1.2,
-        diffusion: 70,
-        lowGain: -2,
-        highGain: 1,
-        mix: 15
+        preDelay: 105,
+        decay: 1.8,
+        diffusion: 58,
+        lowGain: -1,
+        highGain: 1.5,
+        mix: 22
     };
     audioState.compressor = {
         enabled: false,
+        inputGain: 0,
         threshold: -24,
         ratio: 4,
         attack: 0.003,
@@ -701,10 +742,11 @@ document.getElementById('reset-all-btn').onclick = () => {
     if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
     reverb.syncInputs();
     const reverbPresetSelect = document.getElementById('reverb-preset');
-    if (reverbPresetSelect) reverbPresetSelect.value = "";
+    if (reverbPresetSelect) reverbPresetSelect.value = "default:default_reverb";
     reverb.updateUI(updateCompressorRangeFills);
     if (isPlaying && audioCtx) reverb.applySettings(audioCtx, () => isBypassed, true);
     
+    document.getElementById('comp-inputgain').value = 0;
     document.getElementById('comp-threshold').value = -24;
     document.getElementById('comp-ratio').value = 4;
     document.getElementById('comp-attack').value = 0.003;
@@ -736,6 +778,8 @@ document.getElementById('reset-all-btn').onclick = () => {
     });
 
     document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
+    const noneBtnEl = document.querySelector('#genre-grid button');
+    if (noneBtnEl) noneBtnEl.classList.add('genre-active');
     if(isPlaying) playBtn.click();
 };
 
@@ -842,10 +886,26 @@ upload.onchange = (e) => {
             syncStemsUI();
 
             playBtn.disabled = false;
-            progressBar.disabled = false; 
+            
+            const enableSeekBar = document.getElementById('cfg-seek-bar')?.checked !== false;
+            progressBar.disabled = !enableSeekBar;
+            
             downloadBtn.disabled = false;
             playBtn.classList.remove('opacity-40', 'cursor-not-allowed');
             downloadBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+
+            const enableTubeExciter = document.getElementById('cfg-tube-exciter')?.checked !== false;
+            audioState.saturatorEnabled = enableTubeExciter;
+            audioState.saturator = enableTubeExciter ? 15 : 0;
+            
+            const saturatorInput = document.getElementById('saturator-volume');
+            if (saturatorInput) {
+                saturatorInput.value = audioState.saturator;
+                const valSpan = document.getElementById('saturator-val');
+                if (valSpan) valSpan.innerText = audioState.saturator + ' %';
+            }
+            updateUtilityEffectToggles();
+            updateCompressorRangeFills();
             
             pausedAt = 0;
             isPlaying = false;
@@ -882,7 +942,7 @@ progressBar.onchange = async (e) => {
 };
 
 function seekToWaveformEvent(e, shouldRestartPlayback = true) {
-    if (!originalBuffer || !waveformCanvas) return;
+    if (!originalBuffer || !waveformCanvas || progressBar.disabled) return;
     const rect = waveformCanvas.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     progressBar.value = pct * 100;
@@ -1138,7 +1198,7 @@ function animateSpectrum() {
         ctx.fillStyle = grad;
         ctx.fillRect(x, y, barWidth, barHeight);
 
-        ctx.fillStyle = '#475569';
+        ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1e293b' : '#475569';
         ctx.font = '8px monospace';
         ctx.fillText(eqLabels[i], x + 2, 10);
     }
@@ -1267,12 +1327,24 @@ function applyAllLoadedSettings() {
     eq.bindLiveControls(audioCtx, getPlayState, getBypassState);
     eq.updateUI();
 
+    // Sync Preset Library Selection
+    document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
+    const isFlat = audioState.eq.every(val => val === 0);
+    if (isFlat) {
+        const noneBtnEl = document.querySelector('#genre-grid button');
+        if (noneBtnEl) noneBtnEl.classList.add('genre-active');
+    }
+
     // 2. Sync Reverb UI
     reverb.syncInputs();
+    const reverbPresetSelect = document.getElementById('reverb-preset');
+    if (reverbPresetSelect) reverbPresetSelect.value = "";
     reverb.updateUI(updateCompressorRangeFills);
 
     // 3. Sync Compressor UI
     compressor.syncInputs();
+    const compTemplateSelect = document.getElementById('comp-template-select');
+    if (compTemplateSelect) compTemplateSelect.value = "";
     compressor.updateUI(updateCompressorRangeFills);
 
     // 4. Sync Limiter UI

@@ -2,6 +2,7 @@ export class ReverbEffector {
     constructor(audioState) {
         this.audioState = audioState;
         this.presets = {
+            default_reverb: { name: "Default Reverb", preDelay: 105, decay: 1.8, diffusion: 58, lowGain: -1, highGain: 1.5, mix: 22 },
             small_room: { name: "Small Room", preDelay: 20, decay: 1.2, diffusion: 70, lowGain: -2, highGain: 1, mix: 15 },
             vocal_hall: { name: "Vocal Hall", preDelay: 40, decay: 2.8, diffusion: 90, lowGain: -1, highGain: 2, mix: 30 },
             vocal_plate: { name: "Vocal Plate", preDelay: 10, decay: 2.2, diffusion: 95, lowGain: -3, highGain: 3, mix: 25 },
@@ -13,6 +14,7 @@ export class ReverbEffector {
             piano_hall: { name: "Piano Hall", preDelay: 30, decay: 3.5, diffusion: 95, lowGain: 0, highGain: 1, mix: 30 },
             ambient_space: { name: "Ambient Space", preDelay: 120, decay: 12.0, diffusion: 100, lowGain: 0, highGain: 4, mix: 70 }
         };
+        this.customPresetKey = 'jd-reverb-presets';
         this.nodes = {
             input: null,
             output: null,
@@ -22,6 +24,33 @@ export class ReverbEffector {
             convolver: null,
             lowShelf: null,
             highShelf: null
+        };
+    }
+
+    getCustomPresets() {
+        try {
+            return JSON.parse(localStorage.getItem(this.customPresetKey) || '[]');
+        } catch (error) {
+            return [];
+        }
+    }
+
+    setCustomPresets(presets) {
+        try {
+            localStorage.setItem(this.customPresetKey, JSON.stringify(presets));
+        } catch (error) {}
+    }
+
+    cloneSettings(settings = this.audioState.reverb) {
+        const fallback = { enabled: true, preDelay: 105, decay: 1.8, diffusion: 58, lowGain: -1, highGain: 1.5, mix: 22 };
+        return {
+            enabled: settings.enabled === undefined ? fallback.enabled : Boolean(settings.enabled),
+            preDelay: Number.isFinite(Number(settings.preDelay)) ? Number(settings.preDelay) : fallback.preDelay,
+            decay: Number.isFinite(Number(settings.decay)) ? Number(settings.decay) : fallback.decay,
+            diffusion: Number.isFinite(Number(settings.diffusion)) ? Number(settings.diffusion) : fallback.diffusion,
+            lowGain: Number.isFinite(Number(settings.lowGain)) ? Number(settings.lowGain) : fallback.lowGain,
+            highGain: Number.isFinite(Number(settings.highGain)) ? Number(settings.highGain) : fallback.highGain,
+            mix: Number.isFinite(Number(settings.mix)) ? Number(settings.mix) : fallback.mix
         };
     }
 
@@ -48,11 +77,18 @@ export class ReverbEffector {
     populatePresets(selectId) {
         const reverbPreset = document.getElementById(selectId);
         if (!reverbPreset) return;
+        const customPresets = this.getCustomPresets();
         reverbPreset.innerHTML = '<option value="">Reverb Preset</option>';
         Object.entries(this.presets).forEach(([key, preset]) => {
             const option = document.createElement('option');
-            option.value = key;
+            option.value = `default:${key}`;
             option.textContent = preset.name;
+            reverbPreset.appendChild(option);
+        });
+        customPresets.forEach((preset, idx) => {
+            const option = document.createElement('option');
+            option.value = `custom:${idx}`;
+            option.textContent = `Saved: ${preset.name}`;
             reverbPreset.appendChild(option);
         });
     }
@@ -166,22 +202,42 @@ export class ReverbEffector {
         }
 
         const reverbPreset = document.getElementById('reverb-preset');
+        const reverbTemplateName = document.getElementById('reverb-template-name');
+        const reverbTemplateSave = document.getElementById('reverb-template-save');
+
         if (reverbPreset) {
             reverbPreset.onchange = (e) => {
-                const preset = this.presets[e.target.value];
+                const value = e.target.value;
+                if (!value) return;
+                const [type, rawKey] = value.split(':');
+                const customPresets = this.getCustomPresets();
+                const preset = type === 'default'
+                    ? this.presets[rawKey]
+                    : customPresets[Number(rawKey)];
                 if (!preset) return;
-                this.audioState.reverb = {
-                    enabled: true,
-                    preDelay: preset.preDelay,
-                    decay: preset.decay,
-                    diffusion: preset.diffusion,
-                    lowGain: preset.lowGain,
-                    highGain: preset.highGain,
-                    mix: preset.mix
-                };
+
+                const settings = type === 'default' ? preset : preset.settings;
+
+                this.audioState.reverb = this.cloneSettings(settings);
                 this.syncInputs();
                 this.updateUI(updateRangeFillCallback);
                 if (getPlayStateCallback()) this.applySettings(context, getBypassStateCallback, true);
+                if (reverbTemplateName) reverbTemplateName.value = preset.name;
+            };
+        }
+
+        if (reverbTemplateSave) {
+            reverbTemplateSave.onclick = () => {
+                const name = (reverbTemplateName && reverbTemplateName.value.trim()) || `Custom ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                const customPresets = this.getCustomPresets();
+                const existingIdx = customPresets.findIndex(p => p.name === name);
+                const nextPreset = { name, settings: this.cloneSettings() };
+                if (existingIdx >= 0) customPresets[existingIdx] = nextPreset;
+                else customPresets.push(nextPreset);
+                this.setCustomPresets(customPresets);
+                this.populatePresets('reverb-preset');
+                if (reverbPreset) reverbPreset.value = `custom:${existingIdx >= 0 ? existingIdx : customPresets.length - 1}`;
+                if (reverbTemplateName) reverbTemplateName.value = name;
             };
         }
 

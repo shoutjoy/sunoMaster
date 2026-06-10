@@ -2,16 +2,16 @@ export class CompressorEffector {
     constructor(audioState) {
         this.audioState = audioState;
         this.defaultTemplates = [
-            { name: "Voice Clean", settings: { enabled: true, threshold: -24, ratio: 3.2, attack: 0.004, release: 0.18, knee: 24, makeup: 5 } },
-            { name: "Voice Broadcast", settings: { enabled: true, threshold: -28, ratio: 4.5, attack: 0.002, release: 0.22, knee: 30, makeup: 7 } },
-            { name: "Vocal Smooth", settings: { enabled: true, threshold: -22, ratio: 3.8, attack: 0.008, release: 0.32, knee: 36, makeup: 4.5 } },
-            { name: "Podcast Tight", settings: { enabled: true, threshold: -30, ratio: 5.5, attack: 0.003, release: 0.2, knee: 18, makeup: 8 } },
-            { name: "Acoustic Music", settings: { enabled: true, threshold: -18, ratio: 2.2, attack: 0.02, release: 0.45, knee: 26, makeup: 3 } },
-            { name: "Pop Music", settings: { enabled: true, threshold: -16, ratio: 3.5, attack: 0.006, release: 0.18, knee: 20, makeup: 4 } },
-            { name: "Hip-Hop Low Punch", settings: { enabled: true, threshold: -14, ratio: 4.2, attack: 0.012, release: 0.12, knee: 12, makeup: 3.5 } },
-            { name: "Rock Glue", settings: { enabled: true, threshold: -18, ratio: 4, attack: 0.01, release: 0.28, knee: 18, makeup: 4 } },
-            { name: "EDM Loud", settings: { enabled: true, threshold: -12, ratio: 6, attack: 0.002, release: 0.08, knee: 8, makeup: 5 } },
-            { name: "Jazz Natural", settings: { enabled: true, threshold: -20, ratio: 1.8, attack: 0.035, release: 0.55, knee: 35, makeup: 2.5 } }
+            { name: "Voice Clean", settings: { enabled: true, inputGain: 0, threshold: -24, ratio: 3.2, attack: 0.004, release: 0.18, knee: 24, makeup: 5 } },
+            { name: "Voice Broadcast", settings: { enabled: true, inputGain: 0, threshold: -28, ratio: 4.5, attack: 0.002, release: 0.22, knee: 30, makeup: 7 } },
+            { name: "Vocal Smooth", settings: { enabled: true, inputGain: 0, threshold: -22, ratio: 3.8, attack: 0.008, release: 0.32, knee: 36, makeup: 4.5 } },
+            { name: "Podcast Tight", settings: { enabled: true, inputGain: 0, threshold: -30, ratio: 5.5, attack: 0.003, release: 0.2, knee: 18, makeup: 8 } },
+            { name: "Acoustic Music", settings: { enabled: true, inputGain: 0, threshold: -18, ratio: 2.2, attack: 0.02, release: 0.45, knee: 26, makeup: 3 } },
+            { name: "Pop Music", settings: { enabled: true, inputGain: 0, threshold: -16, ratio: 3.5, attack: 0.006, release: 0.18, knee: 20, makeup: 4 } },
+            { name: "Hip-Hop Low Punch", settings: { enabled: true, inputGain: 0, threshold: -14, ratio: 4.2, attack: 0.012, release: 0.12, knee: 12, makeup: 3.5 } },
+            { name: "Rock Glue", settings: { enabled: true, inputGain: 0, threshold: -18, ratio: 4, attack: 0.01, release: 0.28, knee: 18, makeup: 4 } },
+            { name: "EDM Loud", settings: { enabled: true, inputGain: 0, threshold: -12, ratio: 6, attack: 0.002, release: 0.08, knee: 8, makeup: 5 } },
+            { name: "Jazz Natural", settings: { enabled: true, inputGain: 0, threshold: -20, ratio: 1.8, attack: 0.035, release: 0.55, knee: 35, makeup: 2.5 } }
         ];
         this.customTemplateKey = 'jd-compressor-templates';
         this.dynamicCompressorNode = null;
@@ -33,9 +33,10 @@ export class CompressorEffector {
     }
 
     cloneSettings(settings = this.audioState.compressor) {
-        const fallback = { enabled: true, threshold: -24, ratio: 4, attack: 0.003, release: 0.25, knee: 30, makeup: 6 };
+        const fallback = { enabled: true, inputGain: 0, threshold: -24, ratio: 4, attack: 0.003, release: 0.25, knee: 30, makeup: 6 };
         return {
             enabled: settings.enabled === undefined ? fallback.enabled : Boolean(settings.enabled),
+            inputGain: Number.isFinite(Number(settings.inputGain)) ? Number(settings.inputGain) : fallback.inputGain,
             threshold: Number.isFinite(Number(settings.threshold)) ? Number(settings.threshold) : fallback.threshold,
             ratio: Number.isFinite(Number(settings.ratio)) ? Number(settings.ratio) : fallback.ratio,
             attack: Number.isFinite(Number(settings.attack)) ? Number(settings.attack) : fallback.attack,
@@ -69,6 +70,7 @@ export class CompressorEffector {
     syncInputs() {
         const comp = this.audioState.compressor;
         const values = {
+            'comp-inputgain': comp.inputGain,
             'comp-threshold': comp.threshold,
             'comp-ratio': comp.ratio,
             'comp-attack': comp.attack,
@@ -100,10 +102,12 @@ export class CompressorEffector {
     }
 
     connect(context, inputNode, getBypassStateCallback) {
+        this.compressorInputGainNode = context.createGain();
         this.dynamicCompressorNode = context.createDynamicsCompressor();
         this.compressorMakeupNode = context.createGain();
         
-        inputNode.connect(this.dynamicCompressorNode);
+        inputNode.connect(this.compressorInputGainNode);
+        this.compressorInputGainNode.connect(this.dynamicCompressorNode);
         this.dynamicCompressorNode.connect(this.compressorMakeupNode);
         
         this.applySettings(context, getBypassStateCallback);
@@ -111,11 +115,13 @@ export class CompressorEffector {
     }
 
     applySettings(context, getBypassStateCallback) {
-        if (!this.dynamicCompressorNode || !this.compressorMakeupNode) return;
+        if (!this.compressorInputGainNode || !this.dynamicCompressorNode || !this.compressorMakeupNode) return;
         const comp = this.audioState.compressor;
         const disabled = getBypassStateCallback() || !comp.enabled;
         const now = context.currentTime;
 
+        const inputGainVal = disabled ? 0 : comp.inputGain;
+        this.compressorInputGainNode.gain.setValueAtTime(this.dbToGain(inputGainVal), now);
         this.dynamicCompressorNode.threshold.setValueAtTime(disabled ? 0 : comp.threshold, now);
         this.dynamicCompressorNode.knee.setValueAtTime(disabled ? 0 : comp.knee, now);
         this.dynamicCompressorNode.ratio.setValueAtTime(disabled ? 1 : comp.ratio, now);
@@ -139,6 +145,7 @@ export class CompressorEffector {
                 : "bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition";
         }
         
+        const inputgainVal = document.getElementById('comp-inputgain-val');
         const threshVal = document.getElementById('comp-threshold-val');
         const ratioVal = document.getElementById('comp-ratio-val');
         const attackVal = document.getElementById('comp-attack-val');
@@ -146,6 +153,7 @@ export class CompressorEffector {
         const kneeVal = document.getElementById('comp-knee-val');
         const makeupVal = document.getElementById('comp-makeup-val');
 
+        if (inputgainVal) inputgainVal.innerText = `${this.formatCompactNumber(comp.inputGain)} dB`;
         if (threshVal) threshVal.innerText = `${comp.threshold} dB`;
         if (ratioVal) ratioVal.innerText = `${comp.ratio.toFixed(1)}:1`;
         if (attackVal) attackVal.innerText = `${this.formatCompactNumber(comp.attack * 1000)} ms`;
@@ -182,9 +190,13 @@ export class CompressorEffector {
         const plotH = height - (pad * 2);
         const isLight = document.body.classList.contains('light-mode');
         const gridColor = isLight ? 'rgba(71, 85, 105, 0.22)' : 'rgba(148, 163, 184, 0.18)';
-        const textColor = isLight ? '#475569' : '#94a3b8';
-        const curveColor = this.audioState.compressor.enabled ? '#22d3ee' : '#64748b';
-        const fillColor = this.audioState.compressor.enabled ? 'rgba(34, 211, 238, 0.14)' : 'rgba(100, 116, 139, 0.12)';
+        const textColor = isLight ? '#1e293b' : '#94a3b8';
+        const curveColor = this.audioState.compressor.enabled 
+            ? (isLight ? '#0284c7' : '#22d3ee') 
+            : (isLight ? '#475569' : '#64748b');
+        const fillColor = this.audioState.compressor.enabled 
+            ? (isLight ? 'rgba(2, 132, 199, 0.16)' : 'rgba(34, 211, 238, 0.14)') 
+            : (isLight ? 'rgba(71, 85, 105, 0.12)' : 'rgba(100, 116, 139, 0.12)');
 
         const xOf = (db) => pad + ((db - minDb) / (maxDb - minDb)) * plotW;
         const yOf = (db) => pad + (1 - ((db - minDb) / (maxDb - minDb))) * plotH;
@@ -260,6 +272,7 @@ export class CompressorEffector {
         }
 
         const compControls = [
+            { id: 'comp-inputgain', key: 'inputGain' },
             { id: 'comp-threshold', key: 'threshold' },
             { id: 'comp-ratio', key: 'ratio' },
             { id: 'comp-attack', key: 'attack' },

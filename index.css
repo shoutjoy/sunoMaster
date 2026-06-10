@@ -31,13 +31,40 @@ body.light-mode .border-gray-700 {
 body.light-mode .text-white,
 body.light-mode .text-gray-200,
 body.light-mode .text-gray-300 {
-    color: #111827 !important;
+    color: #0f172a !important; /* slate-900 */
 }
-body.light-mode .text-gray-400,
-body.light-mode .text-gray-500,
+body.light-mode .text-gray-400 {
+    color: #334155 !important; /* slate-700 */
+}
+body.light-mode .text-gray-500 {
+    color: #475569 !important; /* slate-600 */
+}
 body.light-mode .text-gray-600,
 body.light-mode .text-gray-700 {
-    color: #475569 !important;
+    color: #475569 !important; /* slate-600 */
+}
+
+/* Light mode contrast adjustments for color text */
+body.light-mode .text-blue-400 { color: #1e40af !important; } /* blue-800 */
+body.light-mode .text-purple-400 { color: #6b21a8 !important; } /* purple-800 */
+body.light-mode .text-purple-300 { color: #701a75 !important; } /* fuchsia-900 */
+body.light-mode .text-cyan-400 { color: #0369a1 !important; } /* sky-700 */
+body.light-mode .text-amber-400 { color: #854d0e !important; } /* amber-800 */
+body.light-mode .text-amber-300 { color: #78350f !important; } /* amber-900 */
+body.light-mode .text-violet-400 { color: #5b21b6 !important; } /* violet-800 */
+body.light-mode .text-rose-400 { color: #9f1239 !important; } /* rose-800 */
+body.light-mode .text-sky-400 { color: #0369a1 !important; } /* sky-700 */
+body.light-mode .text-pink-400 { color: #9d174d !important; } /* pink-800 */
+body.light-mode .text-emerald-400 { color: #065f46 !important; } /* emerald-800 */
+body.light-mode .text-lime-400 { color: #3f6212 !important; } /* lime-800 */
+body.light-mode .text-red-400 { color: #991b1b !important; } /* red-800 */
+body.light-mode .text-orange-400 { color: #9a3412 !important; } /* orange-800 */
+body.light-mode .text-fuchsia-400 { color: #86198f !important; } /* fuchsia-800 */
+body.light-mode .text-teal-400 { color: #115e59 !important; } /* teal-800 */
+
+/* Increase opacity of disabled/empty cards in light mode for readability */
+body.light-mode .opacity-20 {
+    opacity: 0.52 !important;
 }
 body.light-mode .shadow-2xl,
 body.light-mode .shadow-xl {
@@ -109,3 +136,47 @@ body.light-mode ::-webkit-scrollbar-thumb { background: #94a3b8; }
 ::-webkit-scrollbar-track { background: #05070f; }
 ::-webkit-scrollbar-thumb { background: #172237; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+
+/* AI Preset Library Buttons Styling */
+.preset-btn {
+    padding: 0.6rem 0.8rem;
+    border-radius: 0.75rem;
+    border: 1px solid #111827;
+    background-color: #0d1322;
+    color: #94a3b8;
+    font-size: 0.8125rem; /* ~13px */
+    font-weight: 600;
+    text-align: left;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.preset-btn:hover {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+.preset-btn .preset-num {
+    opacity: 0.4;
+    margin-right: 0.375rem;
+    font-family: monospace;
+}
+body.light-mode .preset-btn {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #1e293b !important;
+}
+body.light-mode .preset-btn .preset-num {
+    opacity: 0.65;
+    color: #475569;
+}
+body.light-mode .preset-btn:hover {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
