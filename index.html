@@ -174,9 +174,14 @@
 
                 <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
                     <div class="flex items-center justify-between gap-3">
-                        <button id="play-btn" class="w-11 h-11 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-md transition shadow-lg opacity-40 cursor-not-allowed" disabled>
-                            <i class="fa-solid fa-play ml-0.5"></i>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button id="play-btn" class="w-11 h-11 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-white text-md transition shadow-lg opacity-40 cursor-not-allowed" disabled>
+                                <i class="fa-solid fa-play ml-0.5"></i>
+                            </button>
+                            <button id="loop-btn" type="button" aria-pressed="false" class="w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 text-sm transition border border-gray-700" title="Loop playback">
+                                <i class="fa-solid fa-repeat"></i>
+                            </button>
+                        </div>
                         <div class="text-xs text-gray-400 font-mono" id="time-display">00:00 / 00:00</div>
                         
                         <div class="bg-[#03050a] p-1 rounded-xl flex border border-gray-800 text-[11px] font-medium">
@@ -197,6 +202,54 @@
                         <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>SIGNAL OUTPUT LEVEL (LUFS/RMS)</span><span id="lufs-text">-inf dB</span></div>
                         <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden relative border border-gray-950">
                             <div id="lufs-bar" class="h-full w-0 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500 transition-all duration-75"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold">
+                            <span class="text-violet-400 text-[11px]"><i class="fa-solid fa-wave-square mr-1"></i> MASTER REVERB</span>
+                            <button id="reverb-toggle" type="button" aria-pressed="false" class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
+                        </div>
+                        <select id="reverb-preset" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
+                            <option value="">Reverb Preset</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-violet-400">PRE DELAY</span><span id="reverb-predelay-val" class="text-violet-400 font-mono">20 ms</span>
+                                </div>
+                                <input type="range" id="reverb-predelay" min="0" max="150" value="20" step="1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-violet-400">DECAY</span><span id="reverb-decay-val" class="text-violet-400 font-mono">1.2 s</span>
+                                </div>
+                                <input type="range" id="reverb-decay" min="0.3" max="12" value="1.2" step="0.1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-violet-400">DIFFUSION</span><span id="reverb-diffusion-val" class="text-violet-400 font-mono">70 %</span>
+                                </div>
+                                <input type="range" id="reverb-diffusion" min="0" max="100" value="70" step="1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-violet-400">MIX</span><span id="reverb-mix-val" class="text-violet-400 font-mono">15 %</span>
+                                </div>
+                                <input type="range" id="reverb-mix" min="0" max="100" value="15" step="1" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-violet-400">LOW EQ</span><span id="reverb-low-val" class="text-violet-400 font-mono">-2 dB</span>
+                                </div>
+                                <input type="range" id="reverb-low" min="-12" max="6" value="-2" step="0.5" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-violet-400">HIGH EQ</span><span id="reverb-high-val" class="text-violet-400 font-mono">1 dB</span>
+                                </div>
+                                <input type="range" id="reverb-high" min="-12" max="6" value="1" step="0.5" class="reverb-slider w-full h-1.5 rounded appearance-none accent-violet-500">
+                            </div>
                         </div>
                     </div>
 
@@ -287,6 +340,53 @@
                         </div>
                     </div>
 
+                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
+                        <div class="flex justify-between items-center text-xs font-bold">
+                            <span class="text-lime-400 text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i> LOOKAHEAD LIMITER</span>
+                            <button id="limiter-toggle" type="button" aria-pressed="true" class="bg-lime-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-lime-500 shadow-md transition">IN</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>IN</span><span id="limiter-in-val">-inf</span></div>
+                                <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-950">
+                                    <div id="limiter-in-bar" class="h-full w-0 bg-gradient-to-r from-lime-500 to-amber-400 transition-all duration-75"></div>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>GR</span><span id="limiter-gr-val">0.0 dB</span></div>
+                                <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-950">
+                                    <div id="limiter-gr-bar" class="h-full w-0 bg-gradient-to-r from-lime-400 to-red-500 transition-all duration-75"></div>
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>OUT</span><span id="limiter-out-val">-inf</span></div>
+                                <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-gray-950">
+                                    <div id="limiter-out-bar" class="h-full w-0 bg-gradient-to-r from-lime-500 to-yellow-300 transition-all duration-75"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-lime-400">THRESHOLD</span><span id="limiter-threshold-val" class="text-lime-400 font-mono">-1.0 dB</span>
+                                </div>
+                                <input type="range" id="limiter-threshold" min="-20" max="0" value="-1" step="0.1" class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-lime-400">RELEASE</span><span id="limiter-release-val" class="text-lime-400 font-mono">100 ms</span>
+                                </div>
+                                <input type="range" id="limiter-release" min="10" max="1000" value="100" step="1" class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="text-lime-400">OUTPUT</span><span id="limiter-output-val" class="text-lime-400 font-mono">0.0 dB</span>
+                                </div>
+                                <input type="range" id="limiter-output" min="-12" max="6" value="0" step="0.1" class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
                         <div class="flex justify-between text-xs font-bold">
                             <span class="text-rose-400 text-[11px]"><i class="fa-solid fa-filter-circle-xmark mr-1"></i> AI NOISE REDUCTION</span>
@@ -348,6 +448,7 @@
                         </div>
                         <div class="flex justify-around items-center flex-1 h-full" id="eq-sliders-container"></div>
                     </div>
+                    <div id="post-eq-effects" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
                 </div>
             </div>
 
@@ -440,8 +541,20 @@
             stems: {},
             mutes: {}, 
             noise: 0,
+            noiseEnabled: false,
             deesser: 0,
+            deesserEnabled: false,
             saturator: 0, // 🌟 하이엔드 새츄레이터 상태 버퍼
+            saturatorEnabled: false,
+            reverb: {
+                enabled: false,
+                preDelay: 20,
+                decay: 1.2,
+                diffusion: 70,
+                lowGain: -2,
+                highGain: 1,
+                mix: 15
+            },
             compressor: {
                 enabled: true,
                 threshold: -24,
@@ -451,12 +564,31 @@
                 knee: 30,
                 makeup: 6
             },
+            limiter: {
+                enabled: true,
+                threshold: -1,
+                release: 100,
+                outputGain: 0
+            },
             master: 100
         };
         stemRegistry.forEach(s => {
             audioState.stems[s.id] = 0;
             audioState.mutes[s.id] = false;
         });
+
+        const reverbPresets = {
+            small_room: { name: "Small Room", preDelay: 20, decay: 1.2, diffusion: 70, lowGain: -2, highGain: 1, mix: 15 },
+            vocal_hall: { name: "Vocal Hall", preDelay: 40, decay: 2.8, diffusion: 90, lowGain: -1, highGain: 2, mix: 30 },
+            vocal_plate: { name: "Vocal Plate", preDelay: 10, decay: 2.2, diffusion: 95, lowGain: -3, highGain: 3, mix: 25 },
+            cathedral: { name: "Cathedral", preDelay: 90, decay: 8.0, diffusion: 100, lowGain: 1, highGain: 0, mix: 50 },
+            arena: { name: "Arena", preDelay: 70, decay: 5.0, diffusion: 90, lowGain: 0, highGain: 1, mix: 45 },
+            drum_room: { name: "Drum Room", preDelay: 5, decay: 0.8, diffusion: 60, lowGain: 0, highGain: -1, mix: 10 },
+            snare_plate: { name: "Snare Plate", preDelay: 15, decay: 1.5, diffusion: 90, lowGain: -2, highGain: 4, mix: 20 },
+            guitar_room: { name: "Guitar Room", preDelay: 15, decay: 1.0, diffusion: 80, lowGain: -1, highGain: 2, mix: 15 },
+            piano_hall: { name: "Piano Hall", preDelay: 30, decay: 3.5, diffusion: 95, lowGain: 0, highGain: 1, mix: 30 },
+            ambient_space: { name: "Ambient Space", preDelay: 120, decay: 12.0, diffusion: 100, lowGain: 0, highGain: 4, mix: 70 }
+        };
 
         const defaultCompressorTemplates = [
             { name: "Voice Clean", settings: { enabled: true, threshold: -24, ratio: 3.2, attack: 0.004, release: 0.18, knee: 24, makeup: 5 } },
@@ -479,6 +611,7 @@
         let startTime = 0;
         let pausedAt = 0;
         let isBypassed = false;
+        let isLooping = false;
         let isUserSeeking = false; // 프로그래스 바 제어용 락 버퍼
         let activeStemIds = [];
         let waveformPeaks = [];
@@ -487,12 +620,23 @@
         let biquadFilters = [];
         let stemFilters = {};
         let noiseFilters = { lowCut: null, highCut: null, deEsser: null, waveShaper: null }; 
+        let reverbNodes = { input: null, output: null, dry: null, wet: null, preDelay: null, convolver: null, lowShelf: null, highShelf: null };
         let dynamicCompressorNode = null; 
         let compressorMakeupNode = null;
+        let limiterNode = null;
+        let limiterFallbackNode = null;
+        let limiterOutputGainNode = null;
+        let limiterMeterInputNode = null;
+        let limiterMeterOutputNode = null;
         let masterGainNode = null;
         let analyserNode = null;
+        let limiterWorkletUrl = null;
+        let limiterWorkletReady = false;
+        const limiterWorkletContexts = new WeakSet();
+        let limiterReductionDb = 0;
 
         const playBtn = document.getElementById('play-btn');
+        const loopBtn = document.getElementById('loop-btn');
         const upload = document.getElementById('audio-upload');
         const downloadBtn = document.getElementById('download-btn');
         const trackName = document.getElementById('track-name');
@@ -514,6 +658,24 @@
         const compTemplateSelect = document.getElementById('comp-template-select');
         const compTemplateName = document.getElementById('comp-template-name');
         const compTemplateSave = document.getElementById('comp-template-save');
+        const reverbToggle = document.getElementById('reverb-toggle');
+        const reverbPreset = document.getElementById('reverb-preset');
+        const reverbPreDelay = document.getElementById('reverb-predelay');
+        const reverbDecay = document.getElementById('reverb-decay');
+        const reverbDiffusion = document.getElementById('reverb-diffusion');
+        const reverbMix = document.getElementById('reverb-mix');
+        const reverbLow = document.getElementById('reverb-low');
+        const reverbHigh = document.getElementById('reverb-high');
+        const limiterToggle = document.getElementById('limiter-toggle');
+        const limiterThreshold = document.getElementById('limiter-threshold');
+        const limiterRelease = document.getElementById('limiter-release');
+        const limiterOutput = document.getElementById('limiter-output');
+        const limiterInBar = document.getElementById('limiter-in-bar');
+        const limiterInVal = document.getElementById('limiter-in-val');
+        const limiterGrBar = document.getElementById('limiter-gr-bar');
+        const limiterGrVal = document.getElementById('limiter-gr-val');
+        const limiterOutBar = document.getElementById('limiter-out-bar');
+        const limiterOutVal = document.getElementById('limiter-out-val');
 
         // UI 1: 10단 EQ 렌더러
         const sliderContainer = document.getElementById('eq-sliders-container');
@@ -594,8 +756,203 @@
         }
 
         // 🛡️ [마스터 직렬 컴파일 파이프라인 엔진]
+        function createReverbImpulse(context, duration = 1.2, diffusion = 70) {
+            const sampleRate = context.sampleRate;
+            const length = Math.max(1, Math.floor(sampleRate * duration));
+            const impulse = context.createBuffer(2, length, sampleRate);
+            const diffusionAmount = Math.max(0, Math.min(1, diffusion / 100));
+            const decayPower = 1.4 + (diffusionAmount * 2.4);
+
+            for (let ch = 0; ch < 2; ch++) {
+                const channel = impulse.getChannelData(ch);
+                let smoothed = 0;
+                for (let i = 0; i < length; i++) {
+                    const t = i / length;
+                    const noise = (Math.random() * 2) - 1;
+                    smoothed = (smoothed * diffusionAmount) + (noise * (1 - diffusionAmount));
+                    channel[i] = smoothed * Math.pow(1 - t, decayPower);
+                }
+            }
+
+            return impulse;
+        }
+
+        function syncReverbInputs() {
+            const rvb = audioState.reverb;
+            if (reverbPreDelay) reverbPreDelay.value = rvb.preDelay;
+            if (reverbDecay) reverbDecay.value = rvb.decay;
+            if (reverbDiffusion) reverbDiffusion.value = rvb.diffusion;
+            if (reverbMix) reverbMix.value = rvb.mix;
+            if (reverbLow) reverbLow.value = rvb.lowGain;
+            if (reverbHigh) reverbHigh.value = rvb.highGain;
+        }
+
+        function applyReverbSettings(context, rebuildImpulse = false) {
+            if (!reverbNodes.input) return;
+            const rvb = audioState.reverb;
+            const disabled = isBypassed || !rvb.enabled;
+            const now = context.currentTime;
+            const mix = disabled ? 0 : Math.max(0, Math.min(1, rvb.mix / 100));
+
+            reverbNodes.dry.gain.setValueAtTime(1 - mix, now);
+            reverbNodes.wet.gain.setValueAtTime(mix, now);
+            reverbNodes.preDelay.delayTime.setValueAtTime((disabled ? 0 : rvb.preDelay) / 1000, now);
+            reverbNodes.lowShelf.gain.setValueAtTime(disabled ? 0 : rvb.lowGain, now);
+            reverbNodes.highShelf.gain.setValueAtTime(disabled ? 0 : rvb.highGain, now);
+
+            if (rebuildImpulse && reverbNodes.convolver) {
+                reverbNodes.convolver.buffer = createReverbImpulse(context, rvb.decay, rvb.diffusion);
+            }
+        }
+
+        function applyUtilityEffectSettings(context) {
+            if (!context) return;
+            const noiseVal = (!isBypassed && audioState.noiseEnabled) ? audioState.noise : 0;
+            const deesserVal = (!isBypassed && audioState.deesserEnabled) ? audioState.deesser : 0;
+            const saturatorVal = (!isBypassed && audioState.saturatorEnabled) ? audioState.saturator : 0;
+
+            if (noiseFilters.lowCut) noiseFilters.lowCut.frequency.setValueAtTime(10 + (noiseVal * 1.2), context.currentTime);
+            if (noiseFilters.highCut) noiseFilters.highCut.frequency.setValueAtTime(22000 - (noiseVal * 120), context.currentTime);
+            if (noiseFilters.deEsser) noiseFilters.deEsser.gain.setValueAtTime(- (deesserVal / 100) * 12, context.currentTime);
+            if (noiseFilters.waveShaper) noiseFilters.waveShaper.curve = makeExciterCurve(saturatorVal);
+        }
+
+        function updateReverbUI() {
+            const rvb = audioState.reverb;
+            if (reverbToggle) {
+                reverbToggle.setAttribute('aria-pressed', String(rvb.enabled));
+                reverbToggle.innerText = rvb.enabled ? 'IN' : 'OUT';
+                reverbToggle.className = rvb.enabled
+                    ? "bg-violet-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-violet-500 shadow-md shadow-violet-500/30 transition"
+                    : "bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition";
+            }
+            document.getElementById('reverb-predelay-val').innerText = `${Math.round(rvb.preDelay)} ms`;
+            document.getElementById('reverb-decay-val').innerText = `${formatCompactNumber(rvb.decay)} s`;
+            document.getElementById('reverb-diffusion-val').innerText = `${Math.round(rvb.diffusion)} %`;
+            document.getElementById('reverb-mix-val').innerText = `${Math.round(rvb.mix)} %`;
+            document.getElementById('reverb-low-val').innerText = `${formatCompactNumber(rvb.lowGain)} dB`;
+            document.getElementById('reverb-high-val').innerText = `${formatCompactNumber(rvb.highGain)} dB`;
+            updateCompressorRangeFills();
+        }
+
+        function populateReverbPresets() {
+            if (!reverbPreset) return;
+            Object.entries(reverbPresets).forEach(([key, preset]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = preset.name;
+                reverbPreset.appendChild(option);
+            });
+        }
+
         function dbToGain(db) {
             return Math.pow(10, db / 20);
+        }
+
+        const limiterWorkletCode = `
+class LookaheadLimiterProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      { name: "threshold", defaultValue: -1, minValue: -60, maxValue: 0, automationRate: "k-rate" },
+      { name: "release", defaultValue: 100, minValue: 10, maxValue: 1000, automationRate: "k-rate" },
+      { name: "outputGain", defaultValue: 0, minValue: -24, maxValue: 24, automationRate: "k-rate" }
+    ];
+  }
+
+  constructor() {
+    super();
+    this.lookaheadMs = 5;
+    this.lookaheadSamples = Math.max(1, Math.floor(sampleRate * this.lookaheadMs / 1000));
+    this.buffers = [];
+    this.writeIndex = 0;
+    this.currentGain = 1;
+    this.blockCount = 0;
+  }
+
+  dbToLinear(db) {
+    return Math.pow(10, db / 20);
+  }
+
+  ensureBuffers(channelCount) {
+    while (this.buffers.length < channelCount) {
+      this.buffers.push(new Float32Array(this.lookaheadSamples));
+    }
+  }
+
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    const output = outputs[0];
+    if (!input || input.length === 0 || !output || output.length === 0) return true;
+
+    const channelCount = Math.min(input.length, output.length);
+    this.ensureBuffers(channelCount);
+
+    const thresholdDb = parameters.threshold[0];
+    const releaseMs = parameters.release[0];
+    const outputGainDb = parameters.outputGain[0];
+    const thresholdLinear = this.dbToLinear(thresholdDb);
+    const outputGainLinear = this.dbToLinear(outputGainDb);
+    const releaseCoeff = Math.exp(-1 / (sampleRate * releaseMs / 1000));
+    let minGain = 1;
+    let inputPeak = 0;
+    let outputPeak = 0;
+
+    for (let i = 0; i < input[0].length; i++) {
+      let peak = 0;
+      const readIndex = this.writeIndex;
+
+      for (let ch = 0; ch < channelCount; ch++) {
+        const sample = input[ch][i] || 0;
+        if (Math.abs(sample) > peak) peak = Math.abs(sample);
+      }
+
+      inputPeak = Math.max(inputPeak, peak);
+      let targetGain = peak > thresholdLinear ? thresholdLinear / peak : 1;
+      if (targetGain < this.currentGain) {
+        this.currentGain = targetGain;
+      } else {
+        this.currentGain = releaseCoeff * this.currentGain + (1 - releaseCoeff) * targetGain;
+      }
+      minGain = Math.min(minGain, this.currentGain);
+
+      for (let ch = 0; ch < channelCount; ch++) {
+        const delayed = this.buffers[ch][readIndex];
+        this.buffers[ch][readIndex] = input[ch][i] || 0;
+        const out = delayed * this.currentGain * outputGainLinear;
+        output[ch][i] = out;
+        outputPeak = Math.max(outputPeak, Math.abs(out));
+      }
+
+      this.writeIndex++;
+      if (this.writeIndex >= this.lookaheadSamples) this.writeIndex = 0;
+    }
+
+    this.blockCount++;
+    if (this.blockCount % 6 === 0) {
+      const reductionDb = -20 * Math.log10(Math.max(minGain, 0.000001));
+      const inputDb = 20 * Math.log10(Math.max(inputPeak, 0.000001));
+      const outputDb = 20 * Math.log10(Math.max(outputPeak, 0.000001));
+      this.port.postMessage({ reductionDb, inputDb, outputDb });
+    }
+
+    return true;
+  }
+}
+
+registerProcessor("lookahead-limiter", LookaheadLimiterProcessor);
+`;
+
+        async function ensureLimiterWorklet(context) {
+            if (!context.audioWorklet) return false;
+            if (limiterWorkletContexts.has(context)) return true;
+            if (!limiterWorkletUrl) {
+                const blob = new Blob([limiterWorkletCode], { type: 'application/javascript' });
+                limiterWorkletUrl = URL.createObjectURL(blob);
+            }
+            await context.audioWorklet.addModule(limiterWorkletUrl);
+            limiterWorkletReady = true;
+            limiterWorkletContexts.add(context);
+            return true;
         }
 
         function formatCompactNumber(value) {
@@ -712,6 +1069,73 @@
             drawAudioWaveform(waveformProgress);
         }
 
+        function updateLoopButton() {
+            if (!loopBtn) return;
+            loopBtn.setAttribute('aria-pressed', String(isLooping));
+            loopBtn.className = isLooping
+                ? "w-9 h-9 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center text-white text-sm transition border border-amber-300 shadow-lg shadow-amber-500/50"
+                : "w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 text-sm transition border border-gray-700";
+        }
+
+        const utilityEffectConfigs = [
+            { key: 'noiseEnabled', inputId: 'noise-reducer', valId: 'noise-val', buttonId: 'noise-toggle', color: 'rose' },
+            { key: 'deesserEnabled', inputId: 'deesser-reducer', valId: 'deesser-val', buttonId: 'deesser-toggle', color: 'sky' },
+            { key: 'saturatorEnabled', inputId: 'saturator-volume', valId: 'saturator-val', buttonId: 'saturator-toggle', color: 'amber' }
+        ];
+
+        function utilityButtonClass(color, enabled) {
+            const onClasses = {
+                rose: "bg-rose-600 border-rose-500 text-white shadow-md shadow-rose-500/30",
+                sky: "bg-sky-600 border-sky-500 text-white shadow-md shadow-sky-500/30",
+                amber: "bg-amber-500 border-amber-400 text-white shadow-md shadow-amber-500/30"
+            };
+            return `text-[10px] font-bold px-2 py-0.5 rounded-md border transition ${enabled ? onClasses[color] : "bg-gray-800 border-gray-700 text-gray-400"}`;
+        }
+
+        function updateUtilityEffectToggles() {
+            utilityEffectConfigs.forEach(({ key, buttonId, color }) => {
+                const button = document.getElementById(buttonId);
+                if (!button) return;
+                const enabled = Boolean(audioState[key]);
+                button.setAttribute('aria-pressed', String(enabled));
+                button.innerText = enabled ? 'IN' : 'OUT';
+                button.className = utilityButtonClass(color, enabled);
+            });
+        }
+
+        function setupPostEqUtilityEffects() {
+            const target = document.getElementById('post-eq-effects');
+            if (!target) return;
+
+            utilityEffectConfigs.forEach(({ key, inputId, valId, buttonId, color }) => {
+                const input = document.getElementById(inputId);
+                const value = document.getElementById(valId);
+                if (!input || !value || document.getElementById(buttonId)) return;
+
+                const card = input.parentElement;
+                const header = card ? card.querySelector('.flex.justify-between') : null;
+                if (!card || !header) return;
+
+                const right = document.createElement('div');
+                right.className = 'flex items-center gap-2';
+                const button = document.createElement('button');
+                button.id = buttonId;
+                button.type = 'button';
+                button.onclick = () => {
+                    audioState[key] = !audioState[key];
+                    updateUtilityEffectToggles();
+                    if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+                };
+
+                header.appendChild(right);
+                right.appendChild(button);
+                right.appendChild(value);
+                target.appendChild(card);
+            });
+
+            updateUtilityEffectToggles();
+        }
+
         function updateRangeFill(input, color = '#22d3ee') {
             if (!input) return;
             const min = Number(input.min || 0);
@@ -724,6 +1148,8 @@
 
         function updateCompressorRangeFills() {
             document.querySelectorAll('.comp-slider').forEach(input => updateRangeFill(input, '#22d3ee'));
+            document.querySelectorAll('.reverb-slider').forEach(input => updateRangeFill(input, '#a855f7'));
+            document.querySelectorAll('.limiter-slider').forEach(input => updateRangeFill(input, '#84cc16'));
             updateRangeFill(document.getElementById('master-volume'), '#f43f5e');
         }
 
@@ -906,6 +1332,42 @@
             compressorMakeupNode.gain.setValueAtTime(disabled ? 1 : dbToGain(comp.makeup), now);
         }
 
+        function applyLimiterSettings(context) {
+            const lim = audioState.limiter;
+            const disabled = isBypassed || !lim.enabled;
+            const now = context.currentTime;
+
+            if (limiterNode && limiterNode.parameters) {
+                limiterNode.parameters.get('threshold').setValueAtTime(disabled ? 0 : lim.threshold, now);
+                limiterNode.parameters.get('release').setValueAtTime(disabled ? 100 : lim.release, now);
+                limiterNode.parameters.get('outputGain').setValueAtTime(disabled ? 0 : lim.outputGain, now);
+            }
+
+            if (limiterFallbackNode && limiterOutputGainNode) {
+                limiterFallbackNode.threshold.setValueAtTime(disabled ? 0 : lim.threshold, now);
+                limiterFallbackNode.knee.setValueAtTime(0, now);
+                limiterFallbackNode.ratio.setValueAtTime(disabled ? 1 : 20, now);
+                limiterFallbackNode.attack.setValueAtTime(0.001, now);
+                limiterFallbackNode.release.setValueAtTime(disabled ? 0.1 : lim.release / 1000, now);
+                limiterOutputGainNode.gain.setValueAtTime(disabled ? 1 : dbToGain(lim.outputGain), now);
+            }
+        }
+
+        function updateLimiterUI() {
+            const lim = audioState.limiter;
+            if (limiterToggle) {
+                limiterToggle.setAttribute('aria-pressed', String(lim.enabled));
+                limiterToggle.innerText = lim.enabled ? 'IN' : 'OUT';
+                limiterToggle.className = lim.enabled
+                    ? "bg-lime-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-lime-500 shadow-md transition"
+                    : "bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition";
+            }
+            document.getElementById('limiter-threshold-val').innerText = `${lim.threshold.toFixed(1)} dB`;
+            document.getElementById('limiter-release-val').innerText = `${Math.round(lim.release)} ms`;
+            document.getElementById('limiter-output-val').innerText = `${lim.outputGain.toFixed(1)} dB`;
+            updateCompressorRangeFills();
+        }
+
         function updateCompressorUI() {
             const comp = audioState.compressor;
             const toggle = document.getElementById('compressor-toggle');
@@ -926,7 +1388,7 @@
             drawCompressorCurve();
         }
 
-        function compileAudioGraph(context, srcNode) {
+        async function compileAudioGraph(context, srcNode) {
             let lastOutputNode = srcNode;
 
             // 1. 10단 EQ 결합
@@ -965,7 +1427,7 @@
             noiseFilters.highCut = context.createBiquadFilter();
             noiseFilters.highCut.type = 'lowpass';
 
-            const noiseVal = audioState.noise;
+            const noiseVal = (!isBypassed && audioState.noiseEnabled) ? audioState.noise : 0;
             noiseFilters.lowCut.frequency.value = isBypassed ? 10 : 10 + (noiseVal * 1.2);
             noiseFilters.highCut.frequency.value = isBypassed ? 22000 : 22000 - (noiseVal * 120);
 
@@ -978,20 +1440,48 @@
             noiseFilters.deEsser.type = 'peaking';
             noiseFilters.deEsser.frequency.value = 6500; 
             noiseFilters.deEsser.Q.value = 2.0;          
-            noiseFilters.deEsser.gain.value = isBypassed ? 0 : - (audioState.deesser / 100) * 12;
+            noiseFilters.deEsser.gain.value = (!isBypassed && audioState.deesserEnabled) ? - (audioState.deesser / 100) * 12 : 0;
 
             lastOutputNode.connect(noiseFilters.deEsser);
             lastOutputNode = noiseFilters.deEsser;
 
             // 🌟 5. 음질 극대화 하이엔드 노드: 4배 오버샘플링 진공관 배음 슈레더 결합 부착 완료
             noiseFilters.waveShaper = context.createWaveShaper();
-            noiseFilters.waveShaper.curve = makeExciterCurve(isBypassed ? 0 : audioState.saturator);
+            noiseFilters.waveShaper.curve = makeExciterCurve((!isBypassed && audioState.saturatorEnabled) ? audioState.saturator : 0);
             noiseFilters.waveShaper.oversample = '4x'; // 🌟 에일리어싱 고역노이즈 차단 4배 하드웨어 오버샘플 가동
 
             lastOutputNode.connect(noiseFilters.waveShaper);
             lastOutputNode = noiseFilters.waveShaper;
 
             // 6. 하드웨어 컴프레서 리미터 노드 부착
+            dynamicCompressorNode = context.createDynamicsCompressor();
+            reverbNodes.input = context.createGain();
+            reverbNodes.output = context.createGain();
+            reverbNodes.dry = context.createGain();
+            reverbNodes.wet = context.createGain();
+            reverbNodes.preDelay = context.createDelay(1);
+            reverbNodes.convolver = context.createConvolver();
+            reverbNodes.lowShelf = context.createBiquadFilter();
+            reverbNodes.highShelf = context.createBiquadFilter();
+
+            reverbNodes.lowShelf.type = 'lowshelf';
+            reverbNodes.lowShelf.frequency.value = 250;
+            reverbNodes.highShelf.type = 'highshelf';
+            reverbNodes.highShelf.frequency.value = 4000;
+            reverbNodes.convolver.buffer = createReverbImpulse(context, audioState.reverb.decay, audioState.reverb.diffusion);
+
+            lastOutputNode.connect(reverbNodes.input);
+            reverbNodes.input.connect(reverbNodes.dry);
+            reverbNodes.input.connect(reverbNodes.preDelay);
+            reverbNodes.preDelay.connect(reverbNodes.convolver);
+            reverbNodes.convolver.connect(reverbNodes.lowShelf);
+            reverbNodes.lowShelf.connect(reverbNodes.highShelf);
+            reverbNodes.highShelf.connect(reverbNodes.wet);
+            reverbNodes.dry.connect(reverbNodes.output);
+            reverbNodes.wet.connect(reverbNodes.output);
+            applyReverbSettings(context);
+            lastOutputNode = reverbNodes.output;
+
             dynamicCompressorNode = context.createDynamicsCompressor();
             compressorMakeupNode = context.createGain();
             applyCompressorSettings(context);
@@ -1001,6 +1491,46 @@
             lastOutputNode = compressorMakeupNode;
 
             // 7. 마스터 볼륨 아웃 게인 결합
+            limiterNode = null;
+            limiterFallbackNode = null;
+            limiterOutputGainNode = null;
+            limiterMeterInputNode = context.createAnalyser();
+            limiterMeterInputNode.fftSize = 256;
+            limiterMeterOutputNode = context.createAnalyser();
+            limiterMeterOutputNode.fftSize = 256;
+            lastOutputNode.connect(limiterMeterInputNode);
+
+            try {
+                const workletAvailable = await ensureLimiterWorklet(context);
+                if (!workletAvailable) throw new Error('AudioWorklet unavailable');
+                limiterNode = new AudioWorkletNode(context, 'lookahead-limiter', {
+                    numberOfInputs: 1,
+                    numberOfOutputs: 1,
+                    parameterData: {
+                        threshold: audioState.limiter.threshold,
+                        release: audioState.limiter.release,
+                        outputGain: audioState.limiter.outputGain
+                    }
+                });
+                limiterNode.port.onmessage = (event) => {
+                    limiterReductionDb = event.data.reductionDb || 0;
+                    if (limiterInVal && Number.isFinite(event.data.inputDb)) limiterInVal.innerText = `${Math.round(event.data.inputDb)} dB`;
+                    if (limiterOutVal && Number.isFinite(event.data.outputDb)) limiterOutVal.innerText = `${Math.round(event.data.outputDb)} dB`;
+                };
+                applyLimiterSettings(context);
+                lastOutputNode.connect(limiterNode);
+                limiterNode.connect(limiterMeterOutputNode);
+                lastOutputNode = limiterNode;
+            } catch (error) {
+                limiterFallbackNode = context.createDynamicsCompressor();
+                limiterOutputGainNode = context.createGain();
+                applyLimiterSettings(context);
+                lastOutputNode.connect(limiterFallbackNode);
+                limiterFallbackNode.connect(limiterOutputGainNode);
+                limiterOutputGainNode.connect(limiterMeterOutputNode);
+                lastOutputNode = limiterOutputGainNode;
+            }
+
             masterGainNode = context.createGain();
             masterGainNode.gain.value = isBypassed ? 1.0 : (audioState.master / 100);
 
@@ -1042,19 +1572,14 @@
                 const val = parseFloat(e.target.value);
                 audioState.noise = val;
                 document.getElementById('noise-val').innerText = val + ' %';
-                if (isPlaying && !isBypassed && noiseFilters.lowCut) {
-                    noiseFilters.lowCut.frequency.setValueAtTime(10 + (val * 1.2), audioCtx.currentTime);
-                    noiseFilters.highCut.frequency.setValueAtTime(22000 - (val * 120), audioCtx.currentTime);
-                }
+                if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
             };
 
             document.getElementById('deesser-reducer').oninput = (e) => {
                 const val = parseFloat(e.target.value);
                 audioState.deesser = val;
                 document.getElementById('deesser-val').innerText = val + ' %';
-                if (isPlaying && !isBypassed && noiseFilters.deEsser) {
-                    noiseFilters.deEsser.gain.setValueAtTime(- (val / 100) * 12, audioCtx.currentTime);
-                }
+                if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
             };
 
             // 🌟 배음 익사이터 실시간 수동 컨트롤 트리거 링크 연결
@@ -1062,10 +1587,52 @@
                 const val = parseFloat(e.target.value);
                 audioState.saturator = val;
                 document.getElementById('saturator-val').innerText = val + ' %';
-                if (isPlaying && !isBypassed && noiseFilters.waveShaper) {
-                    noiseFilters.waveShaper.curve = makeExciterCurve(val);
-                }
+                if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
             };
+
+            if (reverbToggle) {
+                reverbToggle.onclick = () => {
+                    audioState.reverb.enabled = !audioState.reverb.enabled;
+                    updateReverbUI();
+                    if (isPlaying && audioCtx) applyReverbSettings(audioCtx);
+                };
+            }
+
+            if (reverbPreset) {
+                reverbPreset.onchange = (e) => {
+                    const preset = reverbPresets[e.target.value];
+                    if (!preset) return;
+                    audioState.reverb = {
+                        enabled: true,
+                        preDelay: preset.preDelay,
+                        decay: preset.decay,
+                        diffusion: preset.diffusion,
+                        lowGain: preset.lowGain,
+                        highGain: preset.highGain,
+                        mix: preset.mix
+                    };
+                    syncReverbInputs();
+                    updateReverbUI();
+                    if (isPlaying && audioCtx) applyReverbSettings(audioCtx, true);
+                };
+            }
+
+            const reverbControls = [
+                { input: reverbPreDelay, key: 'preDelay', rebuild: false },
+                { input: reverbDecay, key: 'decay', rebuild: true },
+                { input: reverbDiffusion, key: 'diffusion', rebuild: true },
+                { input: reverbMix, key: 'mix', rebuild: false },
+                { input: reverbLow, key: 'lowGain', rebuild: false },
+                { input: reverbHigh, key: 'highGain', rebuild: false }
+            ];
+            reverbControls.forEach(({ input, key, rebuild }) => {
+                if (!input) return;
+                input.oninput = (e) => {
+                    audioState.reverb[key] = parseFloat(e.target.value);
+                    updateReverbUI();
+                    if (isPlaying && audioCtx) applyReverbSettings(audioCtx, rebuild);
+                };
+            });
 
             const comp = audioState.compressor;
             const compToggle = document.getElementById('compressor-toggle');
@@ -1143,6 +1710,28 @@
                 };
             }
 
+            if (limiterToggle) {
+                limiterToggle.onclick = () => {
+                    audioState.limiter.enabled = !audioState.limiter.enabled;
+                    updateLimiterUI();
+                    if (isPlaying && audioCtx) applyLimiterSettings(audioCtx);
+                };
+            }
+
+            const limiterControls = [
+                { input: limiterThreshold, key: 'threshold' },
+                { input: limiterRelease, key: 'release' },
+                { input: limiterOutput, key: 'outputGain' }
+            ];
+            limiterControls.forEach(({ input, key }) => {
+                if (!input) return;
+                input.oninput = (e) => {
+                    audioState.limiter[key] = parseFloat(e.target.value);
+                    updateLimiterUI();
+                    if (isPlaying && audioCtx) applyLimiterSettings(audioCtx);
+                };
+            });
+
             document.getElementById('master-volume').oninput = (e) => {
                 const val = parseFloat(e.target.value);
                 audioState.master = val;
@@ -1153,16 +1742,35 @@
                 }
             };
         }
+        populateReverbPresets();
+        syncReverbInputs();
+        updateReverbUI();
+        setupPostEqUtilityEffects();
         populateCompressorTemplates();
         updateCompressorUI();
+        updateLimiterUI();
         bindLiveControlTriggers();
 
         // 마스터 리셋 초기화 
         document.getElementById('reset-all-btn').onclick = () => {
             audioState.eq = [0,0,0,0,0,0,0,0,0,0];
             audioState.noise = 0;
+            audioState.noiseEnabled = false;
             audioState.deesser = 0;
+            audioState.deesserEnabled = false;
             audioState.saturator = 0;
+            audioState.saturatorEnabled = false;
+            isLooping = false;
+            updateLoopButton();
+            audioState.reverb = {
+                enabled: false,
+                preDelay: 20,
+                decay: 1.2,
+                diffusion: 70,
+                lowGain: -2,
+                highGain: 1,
+                mix: 15
+            };
             audioState.compressor = {
                 enabled: true,
                 threshold: -24,
@@ -1171,6 +1779,12 @@
                 release: 0.25,
                 knee: 30,
                 makeup: 6
+            };
+            audioState.limiter = {
+                enabled: true,
+                threshold: -1,
+                release: 100,
+                outputGain: 0
             };
             audioState.master = 100;
 
@@ -1181,6 +1795,12 @@
             document.getElementById('deesser-val').innerText = "0 %";
             document.getElementById('saturator-volume').value = 0;
             document.getElementById('saturator-val').innerText = "0 %";
+            updateUtilityEffectToggles();
+            if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+            syncReverbInputs();
+            if (reverbPreset) reverbPreset.value = "";
+            updateReverbUI();
+            if (isPlaying && audioCtx) applyReverbSettings(audioCtx, true);
             document.getElementById('comp-threshold').value = -24;
             document.getElementById('comp-ratio').value = 4;
             document.getElementById('comp-attack').value = 0.003;
@@ -1189,6 +1809,11 @@
             document.getElementById('comp-makeup').value = 6;
             updateCompressorUI();
             if (isPlaying && audioCtx) applyCompressorSettings(audioCtx);
+            document.getElementById('limiter-threshold').value = -1;
+            document.getElementById('limiter-release').value = 100;
+            document.getElementById('limiter-output').value = 0;
+            updateLimiterUI();
+            if (isPlaying && audioCtx) applyLimiterSettings(audioCtx);
             document.getElementById('master-volume').value = 100;
             document.getElementById('master-val').innerText = "100 %";
             updateCompressorRangeFills();
@@ -1315,28 +1940,7 @@
             // 재생 중 구간 스킵 시 오디오 버퍼를 끊고 새로 패칭 (가장 확실한 지연 제로 대책)
             if (isPlaying) {
                 if (sourceNode) { try { sourceNode.stop(); } catch(err){} }
-                
-                sourceNode = audioCtx.createBufferSource();
-                sourceNode.buffer = originalBuffer;
-                
-                const finalizedOutput = compileAudioGraph(audioCtx, sourceNode);
-                analyserNode = audioCtx.createAnalyser();
-                analyserNode.fftSize = 512;
-                
-                finalizedOutput.connect(analyserNode);
-                analyserNode.connect(audioCtx.destination);
-                
-                bindLiveControlTriggers();
-                startTime = audioCtx.currentTime - pausedAt;
-                sourceNode.start(0, pausedAt);
-                
-                sourceNode.onended = () => {
-                    if (isPlaying && (audioCtx.currentTime - startTime >= originalBuffer.duration - 0.1)) {
-                        isPlaying = false;
-                        pausedAt = 0;
-                        playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
-                    }
-                };
+                await startPlaybackAt(pausedAt);
             }
             isUserSeeking = false;
         };
@@ -1369,6 +1973,50 @@
             });
         }
 
+        async function startPlaybackAt(offset = 0) {
+            sourceNode = audioCtx.createBufferSource();
+            sourceNode.buffer = originalBuffer;
+
+            const finalizedOutput = await compileAudioGraph(audioCtx, sourceNode);
+            analyserNode = audioCtx.createAnalyser();
+            analyserNode.fftSize = 512;
+
+            finalizedOutput.connect(analyserNode);
+            analyserNode.connect(audioCtx.destination);
+
+            bindLiveControlTriggers();
+
+            pausedAt = Math.max(0, Math.min(offset, originalBuffer.duration));
+            startTime = audioCtx.currentTime - pausedAt;
+            sourceNode.start(0, pausedAt);
+            isPlaying = true;
+            playBtn.innerHTML = `<i class="fa-solid fa-pause"></i>`;
+
+            sourceNode.onended = async () => {
+                if (!isPlaying || audioCtx.currentTime - startTime < originalBuffer.duration - 0.1) return;
+
+                if (isLooping) {
+                    pausedAt = 0;
+                    updateWaveformProgress(0);
+                    await startPlaybackAt(0);
+                    return;
+                }
+
+                isPlaying = false;
+                pausedAt = 0;
+                playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+                updateWaveformProgress(0);
+            };
+        }
+
+        if (loopBtn) {
+            loopBtn.onclick = () => {
+                isLooping = !isLooping;
+                updateLoopButton();
+            };
+        }
+        updateLoopButton();
+
         playBtn.onclick = async () => {
             if (!originalBuffer) return;
 
@@ -1382,32 +2030,8 @@
                 isPlaying = false;
                 playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
             } else {
-                sourceNode = audioCtx.createBufferSource();
-                sourceNode.buffer = originalBuffer;
-
-                const finalizedOutput = compileAudioGraph(audioCtx, sourceNode);
-                
-                analyserNode = audioCtx.createAnalyser();
-                analyserNode.fftSize = 512;
-                
-                finalizedOutput.connect(analyserNode);
-                analyserNode.connect(audioCtx.destination);
-
-                bindLiveControlTriggers();
-
                 if (pausedAt >= originalBuffer.duration) pausedAt = 0;
-                startTime = audioCtx.currentTime - pausedAt;
-                sourceNode.start(0, pausedAt);
-                isPlaying = true;
-                playBtn.innerHTML = `<i class="fa-solid fa-pause"></i>`;
-                
-                sourceNode.onended = () => {
-                    if (isPlaying && (audioCtx.currentTime - startTime >= originalBuffer.duration - 0.1)) {
-                        isPlaying = false;
-                        pausedAt = 0;
-                        playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
-                    }
-                };
+                await startPlaybackAt(pausedAt);
             }
         };
 
@@ -1439,11 +2063,10 @@
                 if (isPlaying) {
                     biquadFilters.forEach(f => f.gain.setValueAtTime(0, audioCtx.currentTime));
                     Object.values(stemFilters).forEach(f => f.gain.setValueAtTime(0, audioCtx.currentTime));
-                    if(noiseFilters.lowCut) noiseFilters.lowCut.frequency.setValueAtTime(10, audioCtx.currentTime);
-                    if(noiseFilters.highCut) noiseFilters.highCut.frequency.setValueAtTime(22000, audioCtx.currentTime);
-                    if(noiseFilters.deEsser) noiseFilters.deEsser.gain.setValueAtTime(0, audioCtx.currentTime);
-                    if(noiseFilters.waveShaper) noiseFilters.waveShaper.curve = makeExciterCurve(0);
+                    applyUtilityEffectSettings(audioCtx);
+                    applyReverbSettings(audioCtx);
                     applyCompressorSettings(audioCtx);
+                    applyLimiterSettings(audioCtx);
                     if(masterGainNode) masterGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
                 }
             } else {
@@ -1458,11 +2081,10 @@
                             stemFilters[stem.id].gain.setValueAtTime(audioState.mutes[stem.id] ? -40 : audioState.stems[stem.id], audioCtx.currentTime);
                         }
                     });
-                    if(noiseFilters.lowCut) noiseFilters.lowCut.frequency.setValueAtTime(10 + (audioState.noise * 1.2), audioCtx.currentTime);
-                    if(noiseFilters.highCut) noiseFilters.highCut.frequency.setValueAtTime(22000 - (audioState.noise * 120), audioCtx.currentTime);
-                    if(noiseFilters.deEsser) noiseFilters.deEsser.gain.setValueAtTime(- (audioState.deesser / 100) * 12, audioCtx.currentTime);
-                    if(noiseFilters.waveShaper) noiseFilters.waveShaper.curve = makeExciterCurve(audioState.saturator);
+                    applyUtilityEffectSettings(audioCtx);
+                    applyReverbSettings(audioCtx);
                     applyCompressorSettings(audioCtx);
+                    applyLimiterSettings(audioCtx);
                     if(masterGainNode) masterGainNode.gain.setValueAtTime(audioState.master / 100, audioCtx.currentTime);
                 }
             }
@@ -1471,7 +2093,7 @@
         btnB.onclick = () => executeBypassRouting(false);
 
         // 무손실 익스포팅 오프라인 바운스 다운로드
-        downloadBtn.onclick = () => {
+        downloadBtn.onclick = async () => {
             if (!originalBuffer) return;
 
             trackName.innerText = "📥 [WAV 고속 내보내기] 오버샘플링 하드웨어 배음 데이터 영구 압축 바운싱 중...";
@@ -1486,7 +2108,7 @@
             const offlineSource = offlineCtx.createBufferSource();
             offlineSource.buffer = originalBuffer;
 
-            const offlineOutput = compileAudioGraph(offlineCtx, offlineSource);
+            const offlineOutput = await compileAudioGraph(offlineCtx, offlineSource);
             offlineOutput.connect(offlineCtx.destination);
             
             offlineSource.start(0);
@@ -1533,6 +2155,30 @@
         }
 
         // 10단 주파수 매칭 옥타브 네온 애널라이저 루프
+        function getAnalyserRmsDb(analyser) {
+            if (!analyser) return -Infinity;
+            const data = new Float32Array(analyser.fftSize);
+            analyser.getFloatTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+            const rms = Math.sqrt(sum / data.length);
+            return 20 * Math.log10(rms + 0.000001);
+        }
+
+        function updateLimiterMeters(inputDb, outputDb, reductionDb) {
+            const normalize = (db) => Math.max(0, Math.min(100, (db + 60) * (100 / 60)));
+            const inDb = Number.isFinite(inputDb) ? inputDb : -Infinity;
+            const outDb = Number.isFinite(outputDb) ? outputDb : -Infinity;
+            const grDb = Math.max(0, Number.isFinite(reductionDb) ? reductionDb : 0);
+
+            if (limiterInBar) limiterInBar.style.width = normalize(inDb) + "%";
+            if (limiterOutBar) limiterOutBar.style.width = normalize(outDb) + "%";
+            if (limiterGrBar) limiterGrBar.style.width = Math.min(100, (grDb / 24) * 100) + "%";
+            if (limiterInVal) limiterInVal.innerText = Number.isFinite(inDb) ? `${Math.round(inDb)} dB` : "-inf";
+            if (limiterOutVal) limiterOutVal.innerText = Number.isFinite(outDb) ? `${Math.round(outDb)} dB` : "-inf";
+            if (limiterGrVal) limiterGrVal.innerText = grDb.toFixed(1) + " dB";
+        }
+
         function animateSpectrum() {
             requestAnimationFrame(animateSpectrum);
             if(!canvas || !ctx) return;
@@ -1551,6 +2197,7 @@
                 if(lufsText) lufsText.innerText = "-inf dB";
                 if(compGrBar) compGrBar.style.width = "0%";
                 if(compGrVal) compGrVal.innerText = "0.0 dB";
+                updateLimiterMeters(-Infinity, -Infinity, 0);
                 if(clipLed) clipLed.classList.remove('clip-active');
                 return;
             }
@@ -1604,6 +2251,13 @@
             if(compGrBar) compGrBar.style.width = Math.min(100, (reduction / 24) * 100) + "%";
             if(compGrVal) compGrVal.innerText = reduction.toFixed(1) + " dB";
 
+            const limiterInputDb = getAnalyserRmsDb(limiterMeterInputNode);
+            const limiterOutputDb = getAnalyserRmsDb(limiterMeterOutputNode);
+            const limiterGrDb = limiterFallbackNode
+                ? Math.abs(limiterFallbackNode.reduction || 0)
+                : limiterReductionDb;
+            updateLimiterMeters(limiterInputDb, limiterOutputDb, audioState.limiter.enabled && !isBypassed ? limiterGrDb : 0);
+
             if(dbLevel >= -1) {
                 if(clipLed) clipLed.classList.add('clip-active');
             } else {
@@ -1615,9 +2269,11 @@
             canvas.width = canvas.parentElement.clientWidth - 40;
             canvas.height = 140;
             drawCompressorCurve();
+            drawAudioWaveform(waveformProgress);
         }
         window.addEventListener('resize', handleResize);
         handleResize();
+        drawAudioWaveform(0);
         animateSpectrum();
     </script>
 </body>
