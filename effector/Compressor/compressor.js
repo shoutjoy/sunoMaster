@@ -20,7 +20,8 @@ export class CompressorEffector {
 
     getCustomTemplates() {
         try {
-            return JSON.parse(localStorage.getItem(this.customTemplateKey) || '[]');
+            const data = JSON.parse(localStorage.getItem(this.customTemplateKey) || '[]');
+            return Array.isArray(data) ? data : [];
         } catch (error) {
             return [];
         }

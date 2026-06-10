@@ -29,7 +29,8 @@ export class ReverbEffector {
 
     getCustomPresets() {
         try {
-            return JSON.parse(localStorage.getItem(this.customPresetKey) || '[]');
+            const data = JSON.parse(localStorage.getItem(this.customPresetKey) || '[]');
+            return Array.isArray(data) ? data : [];
         } catch (error) {
             return [];
         }
