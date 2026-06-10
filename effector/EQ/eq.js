@@ -12,12 +12,42 @@ export class EQEffector {
         sliderContainer.innerHTML = "";
         this.frequencies.forEach((freq, idx) => {
             const wrapper = document.createElement('div');
-            wrapper.className = "flex flex-col items-center h-full space-y-1";
+            wrapper.className = "eq-slider-wrap flex flex-col items-center h-full space-y-1";
             wrapper.innerHTML = `
-                <input type="range" min="-12" max="12" value="${this.audioState.eq[idx] || 0}" class="vertical-slider" id="eq-${idx}">
+                <div class="eq-slider-shell">
+                    <div class="eq-zero-line"></div>
+                    <div class="eq-fill" id="eq-fill-${idx}"></div>
+                    <input type="range" min="-12" max="12" value="${this.audioState.eq[idx] || 0}" class="vertical-slider" id="eq-${idx}">
+                </div>
                 <span class="text-[9px] text-gray-500 font-mono mt-1 select-none">${this.labels[idx]}</span>
             `;
             sliderContainer.appendChild(wrapper);
+            this.updateSliderFill(wrapper.querySelector(`#eq-${idx}`));
+        });
+    }
+
+    updateSliderFill(slider) {
+        if (!slider) return;
+
+        const min = Number(slider.min);
+        const max = Number(slider.max);
+        const value = Number(slider.value);
+        const zeroPercent = ((max - 0) / (max - min)) * 100;
+        const valuePercent = ((max - value) / (max - min)) * 100;
+        const start = Math.min(zeroPercent, valuePercent);
+        const end = Math.max(zeroPercent, valuePercent);
+        const fill = document.getElementById(`eq-fill-${slider.id.replace('eq-', '')}`);
+
+        if (fill) {
+            fill.style.top = `${start}%`;
+            fill.style.height = `${Math.max(0, end - start)}%`;
+            fill.style.opacity = value === 0 ? '0' : '1';
+        }
+    }
+
+    updateSliderFills() {
+        this.frequencies.forEach((_, idx) => {
+            this.updateSliderFill(document.getElementById(`eq-${idx}`));
         });
     }
 
@@ -60,6 +90,7 @@ export class EQEffector {
                 ? "bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500 shadow-md transition"
                 : "bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition";
         }
+        this.updateSliderFills();
     }
 
     bindLiveControls(context, getPlayStateCallback, getBypassStateCallback) {
@@ -81,6 +112,7 @@ export class EQEffector {
                 slider.oninput = (e) => {
                     const val = parseFloat(e.target.value);
                     this.audioState.eq[idx] = val;
+                    this.updateSliderFill(e.target);
                     const disabled = getBypassStateCallback() || !this.audioState.eqEnabled;
                     if (getPlayStateCallback() && !disabled && this.filters[idx]) {
                         this.filters[idx].gain.setValueAtTime(val, context.currentTime);
@@ -93,7 +125,10 @@ export class EQEffector {
     setEQValue(idx, val, context, getPlayStateCallback, getBypassStateCallback) {
         this.audioState.eq[idx] = val;
         const slider = document.getElementById(`eq-${idx}`);
-        if (slider) slider.value = val;
+        if (slider) {
+            slider.value = val;
+            this.updateSliderFill(slider);
+        }
         const disabled = getBypassStateCallback() || !this.audioState.eqEnabled;
         if (getPlayStateCallback() && !disabled && this.filters[idx]) {
             this.filters[idx].gain.setValueAtTime(val, context.currentTime);
@@ -103,7 +138,10 @@ export class EQEffector {
     resetUI() {
         this.frequencies.forEach((_, idx) => {
             const slider = document.getElementById(`eq-${idx}`);
-            if (slider) slider.value = 0;
+            if (slider) {
+                slider.value = 0;
+                this.updateSliderFill(slider);
+            }
         });
         this.updateUI();
     }

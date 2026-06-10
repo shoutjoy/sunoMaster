@@ -161,6 +161,7 @@ const downloadBtn = document.getElementById('download-btn');
 const trackName = document.getElementById('track-name');
 const timeDisplay = document.getElementById('time-display');
 const progressBar = document.getElementById('progress-bar');
+const progressPercent = document.getElementById('progress-percent');
 const canvas = document.getElementById('visualizer');
 const ctx = canvas.getContext('2d');
 const detectorStatus = document.getElementById('detector-status');
@@ -172,6 +173,12 @@ const waveformCtx = waveformCanvas ? waveformCanvas.getContext('2d') : null;
 const waveformTime = document.getElementById('waveform-time');
 const compGrBar = document.getElementById('comp-gr-bar');
 const compGrVal = document.getElementById('comp-gr-val');
+
+function setProgressBarValue(value) {
+    const clampedValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+    if (progressBar) progressBar.value = clampedValue;
+    if (progressPercent) progressPercent.innerText = `${Math.round(clampedValue)}%`;
+}
 
 // Helper to check play/bypass states in effectors
 const getPlayState = () => isPlaying;
@@ -433,7 +440,7 @@ function setupPostEqUtilityEffects() {
         button.onclick = () => {
             audioState[key] = !audioState[key];
             updateUtilityEffectToggles();
-            if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+            if (audioCtx) applyUtilityEffectSettings(audioCtx);
         };
 
         header.appendChild(right);
@@ -463,6 +470,24 @@ function updateCompressorRangeFills() {
     updateRangeFill(document.getElementById('noise-reducer'), '#f43f5e');
     updateRangeFill(document.getElementById('deesser-reducer'), '#0ea5e9');
     updateRangeFill(document.getElementById('saturator-volume'), '#f59e0b');
+}
+
+function syncUtilityEffectInput(input, stateKey, valueId, color, enabledKey) {
+    if (!input) return;
+    const val = parseFloat(input.value);
+    audioState[stateKey] = val;
+
+    const valueEl = document.getElementById(valueId);
+    if (valueEl) valueEl.innerText = val + ' %';
+
+    updateRangeFill(input, color);
+
+    if (val > 0 && enabledKey && !audioState[enabledKey]) {
+        audioState[enabledKey] = true;
+        updateUtilityEffectToggles();
+    }
+
+    if (audioCtx) applyUtilityEffectSettings(audioCtx);
 }
 
 async function compileAudioGraph(context, srcNode) {
@@ -629,24 +654,15 @@ function bindLiveControlTriggers() {
     });
 
     document.getElementById('noise-reducer').oninput = (e) => {
-        const val = parseFloat(e.target.value);
-        audioState.noise = val;
-        document.getElementById('noise-val').innerText = val + ' %';
-        if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+        syncUtilityEffectInput(e.target, 'noise', 'noise-val', '#f43f5e', 'noiseEnabled');
     };
 
     document.getElementById('deesser-reducer').oninput = (e) => {
-        const val = parseFloat(e.target.value);
-        audioState.deesser = val;
-        document.getElementById('deesser-val').innerText = val + ' %';
-        if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+        syncUtilityEffectInput(e.target, 'deesser', 'deesser-val', '#0ea5e9', 'deesserEnabled');
     };
 
     document.getElementById('saturator-volume').oninput = (e) => {
-        const val = parseFloat(e.target.value);
-        audioState.saturator = val;
-        document.getElementById('saturator-val').innerText = val + ' %';
-        if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+        syncUtilityEffectInput(e.target, 'saturator', 'saturator-val', '#f59e0b', 'saturatorEnabled');
     };
 
     document.getElementById('master-volume').oninput = (e) => {
@@ -739,7 +755,8 @@ document.getElementById('reset-all-btn').onclick = () => {
     document.getElementById('saturator-volume').value = 0;
     document.getElementById('saturator-val').innerText = "0 %";
     updateUtilityEffectToggles();
-    if (isPlaying && audioCtx) applyUtilityEffectSettings(audioCtx);
+    updateCompressorRangeFills();
+    if (audioCtx) applyUtilityEffectSettings(audioCtx);
     reverb.syncInputs();
     const reverbPresetSelect = document.getElementById('reverb-preset');
     if (reverbPresetSelect) reverbPresetSelect.value = "default:default_reverb";
@@ -909,7 +926,7 @@ upload.onchange = (e) => {
             
             pausedAt = 0;
             isPlaying = false;
-            progressBar.value = 0;
+            setProgressBarValue(0);
             updateWaveformProgress(0);
             playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
         }, function(err) {
@@ -945,7 +962,7 @@ function seekToWaveformEvent(e, shouldRestartPlayback = true) {
     if (!originalBuffer || !waveformCanvas || progressBar.disabled) return;
     const rect = waveformCanvas.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    progressBar.value = pct * 100;
+    setProgressBarValue(pct * 100);
     progressBar.dispatchEvent(new Event('input', { bubbles: true }));
     if (shouldRestartPlayback) {
         progressBar.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1040,7 +1057,7 @@ setInterval(() => {
     updateWaveformProgress(current);
     
     if (!isUserSeeking && progressBar) {
-        progressBar.value = (current / originalBuffer.duration) * 100;
+        setProgressBarValue((current / originalBuffer.duration) * 100);
     }
 }, 250);
 
@@ -1112,6 +1129,7 @@ downloadBtn.onclick = async () => {
 
     trackName.innerText = "📥 [WAV 고속 내보내기] 오버샘플링 하드웨어 배음 데이터 영구 압축 바운싱 중...";
     downloadBtn.disabled = true;
+    setProgressBarValue(0);
 
     const offlineCtx = new OfflineAudioContext(
         originalBuffer.numberOfChannels,
@@ -1127,7 +1145,16 @@ downloadBtn.onclick = async () => {
     
     offlineSource.start(0);
 
+    let exportProgressTimer = null;
+    const renderDuration = originalBuffer.duration || 1;
+    exportProgressTimer = window.setInterval(() => {
+        const renderPercent = (offlineCtx.currentTime / renderDuration) * 95;
+        setProgressBarValue(renderPercent);
+    }, 100);
+
     offlineCtx.startRendering().then(function(renderedBuffer) {
+        if (exportProgressTimer) window.clearInterval(exportProgressTimer);
+        setProgressBarValue(95);
         const wavBlob = convertAudioBufferToWavBlob(renderedBuffer);
         const url = URL.createObjectURL(wavBlob);
         
@@ -1136,9 +1163,11 @@ downloadBtn.onclick = async () => {
         link.download = "AI_HiRes_Mastered_Output.wav";
         link.click();
 
+        setProgressBarValue(100);
         trackName.innerText = "추출 성공: 파일 저장이 완료되었습니다.";
         downloadBtn.disabled = false;
     }).catch(err => {
+        if (exportProgressTimer) window.clearInterval(exportProgressTimer);
         alert("인코딩 중 에러가 발생했습니다.");
         downloadBtn.disabled = false;
     });
@@ -1516,7 +1545,7 @@ if (dbLoadSelect) {
 
                         pausedAt = 0;
                         isPlaying = false;
-                        progressBar.value = 0;
+                        setProgressBarValue(0);
                         updateWaveformProgress(0);
                         playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
 
@@ -1545,7 +1574,7 @@ if (dbLoadSelect) {
 
                 pausedAt = 0;
                 isPlaying = false;
-                progressBar.value = 0;
+                setProgressBarValue(0);
                 playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
 
                 // Sync everything!

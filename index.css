@@ -71,7 +71,9 @@ body.light-mode .shadow-xl {
     box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08) !important;
 }
 body.light-mode .vertical-slider {
-    background: #dbe4ef;
+    --eq-track: #dbe4ef;
+    --eq-fill: #2563eb;
+    --eq-fill-soft: rgba(37, 99, 235, 0.28);
 }
 body.light-mode #progress-bar {
     background: #dbe4ef;
@@ -79,14 +81,65 @@ body.light-mode #progress-bar {
 body.light-mode ::-webkit-scrollbar-track { background: #e2e8f0; }
 body.light-mode ::-webkit-scrollbar-thumb { background: #94a3b8; }
 .vertical-slider {
+    --eq-track: #0d1322;
+    --eq-fill: #3b82f6;
+    --eq-fill-soft: rgba(59, 130, 246, 0.25);
     -webkit-appearance: none;
     writing-mode: vertical-lr;
     direction: rtl;
     width: 10px;
     height: 100%;
-    background: #0d1322;
+    background: transparent;
     border-radius: 4px;
     outline: none;
+    position: relative;
+    z-index: 3;
+}
+.eq-slider-shell {
+    --eq-track: #0d1322;
+    --eq-fill: #3b82f6;
+    --eq-fill-soft: rgba(59, 130, 246, 0.25);
+    position: relative;
+    width: 16px;
+    height: 100%;
+}
+body.light-mode .eq-slider-shell {
+    --eq-track: #dbe4ef;
+    --eq-fill: #2563eb;
+    --eq-fill-soft: rgba(37, 99, 235, 0.28);
+}
+.eq-slider-shell::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 0;
+    width: 10px;
+    height: 100%;
+    border-radius: 4px;
+    background: var(--eq-track);
+    z-index: 1;
+}
+.eq-zero-line {
+    position: absolute;
+    left: 1px;
+    top: 50%;
+    width: 14px;
+    height: 1px;
+    background: rgba(148, 163, 184, 0.35);
+    z-index: 2;
+}
+.eq-fill {
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    width: 10px;
+    height: 0;
+    border-radius: 4px;
+    background: linear-gradient(to bottom, #60a5fa, var(--eq-fill));
+    box-shadow: 0 0 14px var(--eq-fill-soft);
+    opacity: 0;
+    transition: top 0.08s ease, height 0.08s ease, opacity 0.08s ease;
+    z-index: 2;
 }
 .vertical-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -97,6 +150,15 @@ body.light-mode ::-webkit-scrollbar-thumb { background: #94a3b8; }
     background: #3b82f6;
     cursor: pointer;
     box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+}
+.vertical-slider::-webkit-slider-runnable-track {
+    background: transparent;
+}
+.vertical-slider::-moz-range-track {
+    background: transparent;
+}
+.vertical-slider::-moz-range-progress {
+    background: transparent;
 }
 .genre-active {
     background-color: rgba(59, 130, 246, 0.3) !important;
