@@ -1,4 +1,4 @@
-export class LimiterEffector {
+class LimiterEffector {
     constructor(audioState) {
         this.audioState = audioState;
         this.limiterNode = null;

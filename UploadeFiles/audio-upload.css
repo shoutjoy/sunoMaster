@@ -1,0 +1,133 @@
+.audio-upload-panel {
+    padding: 0.75rem;
+    border: 1px solid #1f2937;
+    border-radius: 1rem;
+    background: #090d16;
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.22);
+}
+
+.audio-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    border: 0;
+    white-space: nowrap;
+}
+
+.audio-drop-zone {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem;
+    border: 1px dashed #334155;
+    border-radius: 0.85rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.09), rgba(3, 5, 10, 0.75));
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.audio-drop-zone:hover,
+.audio-drop-zone.is-dragging {
+    border-color: #3b82f6;
+    background: rgba(37, 99, 235, 0.16);
+    transform: translateY(-1px);
+}
+
+.audio-drop-zone:focus-visible,
+.audio-analysis-toggle:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+}
+
+.audio-drop-icon {
+    display: grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: rgba(37, 99, 235, 0.18);
+    color: #60a5fa;
+    font-size: 1.05rem;
+}
+
+.audio-drop-zone strong,
+.audio-drop-zone small {
+    display: block;
+}
+
+.audio-drop-zone strong { font-size: 0.75rem; }
+.audio-drop-zone small { margin-top: 0.15rem; color: #64748b; font-size: 0.625rem; }
+
+.audio-drop-action {
+    margin-left: auto;
+    flex: 0 0 auto;
+    border-radius: 0.55rem;
+    background: #2563eb;
+    padding: 0.4rem 0.55rem;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+}
+
+.audio-analysis-summary {
+    margin-top: 0.65rem;
+    overflow: hidden;
+    border: 1px solid #172033;
+    border-radius: 0.75rem;
+    background: #03050a;
+}
+
+.audio-analysis-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    color: #cbd5e1;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.audio-analysis-status {
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    padding: 0.15rem 0.45rem;
+    color: #93c5fd;
+    font-size: 0.58rem;
+}
+
+.audio-analysis-status.is-running i { animation: spin 0.9s linear infinite; }
+.audio-analysis-status.is-done { border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.1); color: #6ee7b7; }
+.audio-analysis-status.is-error { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+
+.audio-analysis-content { border-top: 1px solid #172033; padding: 0.75rem; }
+.audio-analysis-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; }
+.audio-analysis-metric { min-width: 0; border: 1px solid #111827; border-radius: 0.6rem; background: #080c14; padding: 0.55rem; }
+.audio-analysis-metric span { display: block; color: #64748b; font-size: 0.58rem; }
+.audio-analysis-metric strong { display: block; margin-top: 0.12rem; overflow: hidden; color: #e2e8f0; font-family: ui-monospace, monospace; font-size: 0.68rem; text-overflow: ellipsis; white-space: nowrap; }
+.audio-analysis-advice { margin-top: 0.65rem; border-radius: 0.6rem; background: rgba(37, 99, 235, 0.07); padding: 0.65rem; }
+.audio-analysis-advice h4 { color: #93c5fd; font-size: 0.65rem; font-weight: 700; }
+.audio-analysis-advice ul { margin-top: 0.35rem; padding-left: 1rem; color: #94a3b8; font-size: 0.62rem; line-height: 1.55; list-style: disc; }
+
+body.light-mode .audio-upload-panel { border-color: #cbd5e1; background: #ffffff; }
+body.light-mode .audio-drop-zone { border-color: #94a3b8; background: #f8fafc; color: #0f172a; }
+body.light-mode .audio-analysis-summary,
+body.light-mode .audio-analysis-metric { border-color: #e2e8f0; background: #f8fafc; }
+body.light-mode .audio-analysis-toggle,
+body.light-mode .audio-analysis-metric strong { color: #1e293b; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 420px) {
+    .audio-drop-action { display: none; }
+}

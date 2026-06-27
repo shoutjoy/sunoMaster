@@ -1,4 +1,4 @@
-export class CompressorEffector {
+class CompressorEffector {
     constructor(audioState) {
         this.audioState = audioState;
         this.defaultTemplates = [

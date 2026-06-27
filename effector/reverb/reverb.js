@@ -1,4 +1,4 @@
-export class ReverbEffector {
+class ReverbEffector {
     constructor(audioState) {
         this.audioState = audioState;
         this.presets = {

@@ -1,8 +1,3 @@
-import { EQEffector } from './effector/EQ/eq.js';
-import { ReverbEffector } from './effector/reverb/reverb.js';
-import { CompressorEffector } from './effector/Compressor/compressor.js';
-import { LimiterEffector } from './effector/limitor/limiter.js';
-
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
 const themeLabel = document.getElementById('theme-label');
@@ -41,6 +36,63 @@ if (themeToggle) {
         compressor.drawCurve();
     };
 }
+
+const playerSettingsBtn = document.getElementById('player-settings-btn');
+const playerSettingsMenu = document.getElementById('player-settings-menu');
+const playerModeInner = document.getElementById('player-mode-inner');
+const playerModeFloat = document.getElementById('player-mode-float');
+const globalPlayerShell = document.getElementById('global-player-shell');
+const PLAYER_MODE_STORAGE_KEY = 'jd-player-display-mode';
+
+function getStoredPlayerMode() {
+    try {
+        return localStorage.getItem(PLAYER_MODE_STORAGE_KEY) === 'float' ? 'float' : 'inner';
+    } catch (error) {
+        return 'inner';
+    }
+}
+
+function applyPlayerMode(mode, persist = true) {
+    const normalizedMode = mode === 'float' ? 'float' : 'inner';
+    document.body.classList.toggle('player-float', normalizedMode === 'float');
+    if (globalPlayerShell) globalPlayerShell.dataset.playerMode = normalizedMode;
+    if (playerModeInner) playerModeInner.checked = normalizedMode === 'inner';
+    if (playerModeFloat) playerModeFloat.checked = normalizedMode === 'float';
+    if (persist) {
+        try { localStorage.setItem(PLAYER_MODE_STORAGE_KEY, normalizedMode); } catch (error) {}
+    }
+}
+
+function setPlayerSettingsOpen(open) {
+    if (!playerSettingsBtn || !playerSettingsMenu) return;
+    playerSettingsMenu.classList.toggle('hidden', !open);
+    playerSettingsBtn.setAttribute('aria-expanded', String(open));
+}
+
+if (playerSettingsBtn && playerSettingsMenu) {
+    playerSettingsBtn.onclick = (event) => {
+        event.stopPropagation();
+        setPlayerSettingsOpen(playerSettingsMenu.classList.contains('hidden'));
+    };
+    playerSettingsMenu.onclick = (event) => event.stopPropagation();
+    document.addEventListener('click', () => setPlayerSettingsOpen(false));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setPlayerSettingsOpen(false);
+    });
+}
+if (playerModeInner) playerModeInner.onchange = () => {
+    if (playerModeInner.checked) {
+        applyPlayerMode('inner');
+        setPlayerSettingsOpen(false);
+    }
+};
+if (playerModeFloat) playerModeFloat.onchange = () => {
+    if (playerModeFloat.checked) {
+        applyPlayerMode('float');
+        setPlayerSettingsOpen(false);
+    }
+};
+applyPlayerMode(getStoredPlayerMode(), false);
 
 const eqLabels = ["31.5", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
 
@@ -119,6 +171,8 @@ const audioState = {
         release: 100,
         outputGain: 0
     },
+    pan: 0,
+    front: 0,
     master: 100
 };
 
@@ -139,8 +193,14 @@ let sourceNode = null;
 let isPlaying = false;
 let startTime = 0;
 let pausedAt = 0;
-let isBypassed = false;
+let isBypassed = true;
 let isLooping = false;
+let sectionRepeatEnabled = false;
+let sectionRepeatStart = 0;
+let sectionRepeatEnd = 0;
+let sectionRepeatInitialized = false;
+let sectionRepeatDrag = null;
+let sectionRepeatSeeking = false;
 let isUserSeeking = false; 
 let activeStemIds = [];
 let waveformPeaks = [];
@@ -151,8 +211,14 @@ let currentAudioFileName = "";
 
 let stemFilters = {};
 let noiseFilters = { lowCut: null, highCut: null, deEsser: null, waveShaper: null }; 
+let frontFilters = { body: null, presence: null, air: null };
+let stereoPannerNode = null;
 let masterGainNode = null;
 let analyserNode = null;
+let levelSplitterNode = null;
+let levelLeftAnalyser = null;
+let levelRightAnalyser = null;
+let levelSilentGain = null;
 
 const playBtn = document.getElementById('play-btn');
 const loopBtn = document.getElementById('loop-btn');
@@ -167,6 +233,29 @@ const trackName = document.getElementById('track-name');
 const timeDisplay = document.getElementById('time-display');
 const progressBar = document.getElementById('progress-bar');
 const progressPercent = document.getElementById('progress-percent');
+const skipBackBtn = document.getElementById('skip-back-btn');
+const skipForwardBtn = document.getElementById('skip-forward-btn');
+const seekStartBtn = document.getElementById('seek-start-btn');
+const seekEndBtn = document.getElementById('seek-end-btn');
+const panControl = document.getElementById('pan-control');
+const panValue = document.getElementById('pan-val');
+const frontControl = document.getElementById('front-control');
+const frontValue = document.getElementById('front-val');
+const sectionRepeatBtn = document.getElementById('section-repeat-btn');
+const sectionRepeatEditor = document.getElementById('section-repeat-editor');
+const sectionRepeatBar = document.getElementById('section-repeat-bar');
+const sectionRepeatRegion = document.getElementById('section-repeat-region');
+const sectionRepeatPlayhead = document.getElementById('section-repeat-playhead');
+const sectionRepeatStartHandle = document.getElementById('section-repeat-start-handle');
+const sectionRepeatEndHandle = document.getElementById('section-repeat-end-handle');
+const sectionRepeatStartLabel = document.getElementById('section-repeat-start-label');
+const sectionRepeatEndLabel = document.getElementById('section-repeat-end-label');
+const sectionRepeatStartBadge = document.getElementById('section-repeat-start-badge');
+const sectionRepeatEndBadge = document.getElementById('section-repeat-end-badge');
+const sectionRepeatDurationLabel = document.getElementById('section-repeat-duration-label');
+const levelMeter = document.querySelector('.output-level-meter');
+const levelMeterLeft = document.getElementById('level-meter-left');
+const levelMeterRight = document.getElementById('level-meter-right');
 const canvas = document.getElementById('visualizer');
 const ctx = canvas.getContext('2d');
 const detectorStatus = document.getElementById('detector-status');
@@ -179,10 +268,86 @@ const waveformTime = document.getElementById('waveform-time');
 const compGrBar = document.getElementById('comp-gr-bar');
 const compGrVal = document.getElementById('comp-gr-val');
 
+function setAudioTransportAvailability(enabled) {
+    document.querySelectorAll('[data-audio-transport]').forEach((button) => {
+        button.disabled = !enabled;
+    });
+}
+
+const LEVEL_METER_SEGMENTS = 16;
+function setupOutputLevelMeter() {
+    [levelMeterLeft, levelMeterRight].forEach((channel) => {
+        if (!channel) return;
+        channel.replaceChildren(...Array.from({ length: LEVEL_METER_SEGMENTS }, () => document.createElement('i')));
+    });
+}
+
+function setLevelMeterChannel(channel, level) {
+    if (!channel) return;
+    const segments = Array.from(channel.children);
+    const filled = Math.round(Math.max(0, Math.min(1, level)) * segments.length);
+    segments.forEach((segment, index) => {
+        segment.className = index < filled
+            ? index >= segments.length - 2 ? 'is-clip' : index >= segments.length - 5 ? 'is-warn' : 'is-lit'
+            : '';
+    });
+}
+
+function readAnalyserLevel(analyser) {
+    if (!analyser || !isPlaying) return 0;
+    const samples = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(samples);
+    let sum = 0;
+    let peak = 0;
+    for (const sample of samples) {
+        sum += sample * sample;
+        peak = Math.max(peak, Math.abs(sample));
+    }
+    return Math.min(1, Math.max(Math.sqrt(sum / samples.length) * 2.4, peak));
+}
+
+function updateOutputLevelMeter() {
+    const left = readAnalyserLevel(levelLeftAnalyser);
+    const right = readAnalyserLevel(levelRightAnalyser);
+    setLevelMeterChannel(levelMeterLeft, left);
+    setLevelMeterChannel(levelMeterRight, right);
+    levelMeter?.setAttribute('aria-valuenow', String(Math.round(Math.max(left, right) * 100)));
+}
+
+setupOutputLevelMeter();
+
+// Bind file selection and drag-and-drop before the rest of the workstation UI initializes.
+// This keeps uploading operational even if an unrelated panel fails later during startup.
+initAudioUpload({
+    input: upload,
+    getAudioContext: async () => {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Decoding works while suspended. Do not await resume here: file change/drop
+        // is not always accepted as an autoplay gesture and the promise may stay pending.
+        if (audioCtx.state === 'suspended') void audioCtx.resume().catch(() => {});
+        return audioCtx;
+    },
+    onLoading: () => {
+        trackName.innerText = 'AI 멀티 세션 트랙 스펙트럼 분석 중...';
+        detectorStatus.innerText = '(분석 연산 중)';
+    },
+    onDecoded: ({ file, buffer }) => handleDecodedAudio(file, buffer),
+    onError: (error) => {
+        console.error('Audio upload failed:', error);
+        alert(error.message || '오디오 데이터 디코딩에 실패했습니다. 포맷을 다시 확인해 주세요.');
+    }
+});
+
 function setProgressBarValue(value) {
     const clampedValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
-    if (progressBar) progressBar.value = clampedValue;
-    if (progressPercent) progressPercent.innerText = `${Math.round(clampedValue)}%`;
+    if (progressBar) {
+        progressBar.value = clampedValue;
+        progressBar.style.setProperty('--playback-progress', `${clampedValue}%`);
+        const duration = originalBuffer?.duration || 0;
+        const current = duration * (clampedValue / 100);
+        progressBar.setAttribute('aria-valuetext', `${formatTime(current)} / ${formatTime(duration)}`);
+    }
+    if (progressPercent) progressPercent.innerText = formatTime(originalBuffer?.duration || 0);
 }
 
 let activeExportJob = null;
@@ -421,8 +586,136 @@ function updateLoopButton() {
     if (!loopBtn) return;
     loopBtn.setAttribute('aria-pressed', String(isLooping));
     loopBtn.className = isLooping
-        ? "w-9 h-9 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center text-white text-sm transition border border-amber-300 shadow-lg shadow-amber-500/50"
-        : "w-9 h-9 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-gray-400 text-sm transition border border-gray-700";
+        ? "transport-btn is-looping"
+        : "transport-btn";
+}
+
+function clampSectionTime(value) {
+    const duration = originalBuffer?.duration || 0;
+    return Math.max(0, Math.min(duration, Number(value) || 0));
+}
+
+function setSectionRepeatRange(start, end) {
+    const duration = originalBuffer?.duration || 0;
+    if (!duration) {
+        sectionRepeatStart = 0;
+        sectionRepeatEnd = 0;
+        return;
+    }
+    let nextStart = clampSectionTime(Math.min(start, end));
+    let nextEnd = clampSectionTime(Math.max(start, end));
+    const minimum = Math.min(0.25, duration);
+    if (nextEnd - nextStart < minimum) {
+        nextEnd = Math.min(duration, nextStart + minimum);
+        nextStart = Math.max(0, nextEnd - minimum);
+    }
+    sectionRepeatStart = nextStart;
+    sectionRepeatEnd = nextEnd;
+    updateSectionRepeatUI();
+}
+
+function updateSectionRepeatUI(current = isPlaying && audioCtx ? audioCtx.currentTime - startTime : pausedAt) {
+    const duration = originalBuffer?.duration || 0;
+    if (!sectionRepeatBtn || !sectionRepeatEditor) return;
+    sectionRepeatBtn.setAttribute('aria-pressed', String(sectionRepeatEnabled));
+    sectionRepeatBtn.classList.toggle('is-active', sectionRepeatEnabled);
+    sectionRepeatEditor.classList.toggle('hidden', !sectionRepeatEnabled || !duration);
+    if (!duration) return;
+
+    const startPct = (sectionRepeatStart / duration) * 100;
+    const endPct = (sectionRepeatEnd / duration) * 100;
+    const playheadPct = (Math.max(0, Math.min(duration, current)) / duration) * 100;
+    if (sectionRepeatRegion) {
+        sectionRepeatRegion.style.left = `${startPct}%`;
+        sectionRepeatRegion.style.width = `${Math.max(0, endPct - startPct)}%`;
+    }
+    if (sectionRepeatStartHandle) sectionRepeatStartHandle.style.left = `${startPct}%`;
+    if (sectionRepeatEndHandle) sectionRepeatEndHandle.style.left = `${endPct}%`;
+    if (sectionRepeatStartBadge) {
+        sectionRepeatStartBadge.style.left = `${startPct}%`;
+        sectionRepeatStartBadge.innerText = `A ${formatTime(sectionRepeatStart)}`;
+    }
+    if (sectionRepeatEndBadge) {
+        sectionRepeatEndBadge.style.left = `${endPct}%`;
+        sectionRepeatEndBadge.innerText = `B ${formatTime(sectionRepeatEnd)}`;
+    }
+    if (sectionRepeatDurationLabel) {
+        sectionRepeatDurationLabel.style.left = `${startPct + ((endPct - startPct) / 2)}%`;
+        sectionRepeatDurationLabel.innerText = `선택 ${formatTime(Math.max(0, sectionRepeatEnd - sectionRepeatStart))}`;
+    }
+    if (sectionRepeatPlayhead) sectionRepeatPlayhead.style.left = `${playheadPct}%`;
+    const progress = sectionRepeatBar?.querySelector('.section-repeat-progress');
+    if (progress) progress.style.width = `${playheadPct}%`;
+    if (sectionRepeatStartLabel) sectionRepeatStartLabel.innerText = `A ${formatTime(sectionRepeatStart)}`;
+    if (sectionRepeatEndLabel) sectionRepeatEndLabel.innerText = `B ${formatTime(sectionRepeatEnd)}`;
+}
+
+function sectionTimeFromPointer(clientX) {
+    const rect = sectionRepeatBar?.getBoundingClientRect();
+    const duration = originalBuffer?.duration || 0;
+    if (!rect?.width || !duration) return 0;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * duration;
+}
+
+function startSectionRepeatDrag(mode, event) {
+    if (!sectionRepeatEnabled || !originalBuffer || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const anchor = sectionTimeFromPointer(event.clientX);
+    sectionRepeatDrag = { mode, anchor, start: sectionRepeatStart, end: sectionRepeatEnd };
+    if (mode === 'create') setSectionRepeatRange(anchor, anchor);
+    sectionRepeatBar?.setPointerCapture?.(event.pointerId);
+}
+
+function moveSectionRepeatDrag(event) {
+    if (!sectionRepeatDrag) return;
+    const time = sectionTimeFromPointer(event.clientX);
+    if (sectionRepeatDrag.mode === 'start') setSectionRepeatRange(time, sectionRepeatDrag.end);
+    else if (sectionRepeatDrag.mode === 'end') setSectionRepeatRange(sectionRepeatDrag.start, time);
+    else if (sectionRepeatDrag.mode === 'create') setSectionRepeatRange(sectionRepeatDrag.anchor, time);
+    else if (sectionRepeatDrag.mode === 'move') {
+        const duration = originalBuffer?.duration || 0;
+        const width = sectionRepeatDrag.end - sectionRepeatDrag.start;
+        let start = sectionRepeatDrag.start + (time - sectionRepeatDrag.anchor);
+        start = Math.max(0, Math.min(duration - width, start));
+        setSectionRepeatRange(start, start + width);
+    }
+}
+
+function stopSectionRepeatDrag(event) {
+    if (!sectionRepeatDrag) return;
+    sectionRepeatDrag = null;
+    if (sectionRepeatBar?.hasPointerCapture?.(event.pointerId)) {
+        sectionRepeatBar.releasePointerCapture(event.pointerId);
+    }
+}
+
+if (sectionRepeatBtn) {
+    sectionRepeatBtn.onclick = () => {
+        if (!originalBuffer) return;
+        sectionRepeatEnabled = !sectionRepeatEnabled;
+        if (sectionRepeatEnabled && !sectionRepeatInitialized) {
+            const duration = originalBuffer.duration;
+            setSectionRepeatRange(duration * 0.2, duration * 0.8);
+            sectionRepeatInitialized = true;
+        }
+        updateSectionRepeatUI();
+    };
+}
+if (sectionRepeatBar) {
+    sectionRepeatBar.onpointerdown = (event) => {
+        const mode = event.target === sectionRepeatStartHandle
+            ? 'start'
+            : event.target === sectionRepeatEndHandle
+                ? 'end'
+                : event.target === sectionRepeatRegion
+                    ? 'move'
+                    : 'create';
+        startSectionRepeatDrag(mode, event);
+    };
+    sectionRepeatBar.onpointermove = moveSectionRepeatDrag;
+    sectionRepeatBar.onpointerup = stopSectionRepeatDrag;
+    sectionRepeatBar.onpointercancel = stopSectionRepeatDrag;
 }
 
 const utilityEffectConfigs = [
@@ -502,6 +795,74 @@ function updateCompressorRangeFills() {
     updateRangeFill(document.getElementById('noise-reducer'), '#f43f5e');
     updateRangeFill(document.getElementById('deesser-reducer'), '#0ea5e9');
     updateRangeFill(document.getElementById('saturator-volume'), '#f59e0b');
+    updateRangeFill(panControl, '#06b6d4');
+    updateRangeFill(frontControl, '#8b5cf6');
+}
+
+function formatPanValue(value) {
+    const amount = Math.round(Math.abs(value));
+    if (amount === 0) return 'C';
+    return `${value < 0 ? 'L' : 'R'}${amount}`;
+}
+
+function syncSpatialUI() {
+    if (panControl) panControl.value = audioState.pan ?? 0;
+    if (frontControl) frontControl.value = audioState.front ?? 0;
+    if (panValue) panValue.value = formatPanValue(Number(audioState.pan) || 0);
+    if (frontValue) {
+        const value = Math.round(Number(audioState.front) || 0);
+        frontValue.value = value > 0 ? `+${value}` : String(value);
+    }
+    updateRangeFill(panControl, '#06b6d4');
+    updateRangeFill(frontControl, '#8b5cf6');
+}
+
+function applySpatialSettings(context = audioCtx) {
+    if (!context) return;
+    const now = context.currentTime || 0;
+    const front = isBypassed ? 0 : Math.max(-100, Math.min(100, Number(audioState.front) || 0));
+    const pan = isBypassed ? 0 : Math.max(-1, Math.min(1, (Number(audioState.pan) || 0) / 100));
+
+    // Positive Front adds presence/air and trims body; negative values move the
+    // source back with softer highs and slightly more low-mid body.
+    frontFilters.body?.gain.setValueAtTime(-front * 0.015, now);
+    frontFilters.presence?.gain.setValueAtTime(front * 0.06, now);
+    frontFilters.air?.gain.setValueAtTime(front * 0.025, now);
+    stereoPannerNode?.pan.setValueAtTime(pan, now);
+}
+
+function bindSpatialControls() {
+    const commitSpatialInput = (input, nextValue) => {
+        if (!input) return;
+        const min = Number(input.min);
+        const max = Number(input.max);
+        input.value = Math.max(min, Math.min(max, Number(nextValue) || 0));
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    if (panControl) {
+        panControl.oninput = (event) => {
+            audioState.pan = Number(event.target.value) || 0;
+            syncSpatialUI();
+            applySpatialSettings();
+        };
+        panControl.ondblclick = () => commitSpatialInput(panControl, 0);
+    }
+    if (frontControl) {
+        frontControl.oninput = (event) => {
+            audioState.front = Number(event.target.value) || 0;
+            syncSpatialUI();
+            applySpatialSettings();
+        };
+        frontControl.ondblclick = () => commitSpatialInput(frontControl, 0);
+    }
+    document.querySelectorAll('[data-spatial-target]').forEach((button) => {
+        button.onclick = () => {
+            const input = document.getElementById(button.dataset.spatialTarget);
+            const delta = Number(button.dataset.spatialDelta) || 0;
+            commitSpatialInput(input, Number(input?.value || 0) + delta);
+        };
+    });
+    syncSpatialUI();
 }
 
 function syncUtilityEffectInput(input, stateKey, valueId, color, enabledKey) {
@@ -583,10 +944,34 @@ async function compileAudioGraph(context, srcNode) {
     // 7. Compressor
     lastOutputNode = compressor.connect(context, lastOutputNode, () => isBypassed);
 
-    // 8. Limiter
+    // 8. Front depth: a dedicated EQ contour independent of the graphic EQ.
+    frontFilters.body = context.createBiquadFilter();
+    frontFilters.body.type = 'lowshelf';
+    frontFilters.body.frequency.value = 220;
+    frontFilters.presence = context.createBiquadFilter();
+    frontFilters.presence.type = 'peaking';
+    frontFilters.presence.frequency.value = 2800;
+    frontFilters.presence.Q.value = 0.8;
+    frontFilters.air = context.createBiquadFilter();
+    frontFilters.air.type = 'highshelf';
+    frontFilters.air.frequency.value = 6500;
+    lastOutputNode.connect(frontFilters.body);
+    frontFilters.body.connect(frontFilters.presence);
+    frontFilters.presence.connect(frontFilters.air);
+    lastOutputNode = frontFilters.air;
+
+    // 9. Limiter
     lastOutputNode = await limiter.connect(context, lastOutputNode, () => isBypassed);
 
-    // 9. Master volume out gain
+    // 10. Stereo pan
+    stereoPannerNode = typeof context.createStereoPanner === 'function' ? context.createStereoPanner() : null;
+    if (stereoPannerNode) {
+        lastOutputNode.connect(stereoPannerNode);
+        lastOutputNode = stereoPannerNode;
+    }
+    applySpatialSettings(context);
+
+    // 11. Master volume out gain
     masterGainNode = context.createGain();
     masterGainNode.gain.value = isBypassed ? 1.0 : (audioState.master / 100);
 
@@ -718,6 +1103,7 @@ compressor.populateTemplates('comp-template-select');
 compressor.updateUI(updateCompressorRangeFills);
 limiter.updateUI(updateCompressorRangeFills);
 bindLiveControlTriggers();
+bindSpatialControls();
 
 // Load upload activation preference configurations
 const cfgSeekBar = document.getElementById('cfg-seek-bar');
@@ -740,6 +1126,7 @@ if (cfgTubeExciter) {
 
 // Master Reset console
 document.getElementById('reset-all-btn').onclick = () => {
+    executeBypassRouting(true);
     audioState.eq = [0,0,0,0,0,0,0,0,0,0];
     audioState.eqEnabled = false;
     audioState.stemsEnabled = false;
@@ -752,6 +1139,11 @@ document.getElementById('reset-all-btn').onclick = () => {
     audioState.saturatorEnabled = false;
     isLooping = false;
     updateLoopButton();
+    sectionRepeatEnabled = false;
+    sectionRepeatInitialized = false;
+    sectionRepeatStart = 0;
+    sectionRepeatEnd = originalBuffer?.duration || 0;
+    updateSectionRepeatUI(0);
     audioState.reverb = {
         enabled: false,
         preDelay: 105,
@@ -777,6 +1169,8 @@ document.getElementById('reset-all-btn').onclick = () => {
         release: 100,
         outputGain: 0
     };
+    audioState.pan = 0;
+    audioState.front = 0;
     audioState.master = 100;
 
     eq.resetUI();
@@ -813,6 +1207,8 @@ document.getElementById('reset-all-btn').onclick = () => {
 
     document.getElementById('master-volume').value = 100;
     document.getElementById('master-val').innerText = "100 %";
+    syncSpatialUI();
+    applySpatialSettings();
     updateCompressorRangeFills();
 
     stemRegistry.forEach((stem) => {
@@ -899,84 +1295,95 @@ function syncStemsUI() {
     }
 }
 
-// Audio upload and decoding
-upload.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+// Audio upload completion: keep workstation-specific state in the main application.
+function handleDecodedAudio(file, buffer) {
     currentAudioFileBlob = file;
     currentAudioFileName = file.name;
+    originalBuffer = buffer;
+    sectionRepeatEnabled = false;
+    sectionRepeatInitialized = false;
+    sectionRepeatStart = 0;
+    sectionRepeatEnd = buffer.duration;
+    updateSectionRepeatUI(0);
+    waveformPeaks = buildWaveformPeaks(buffer);
+    updateWaveformProgress(0);
+    trackName.innerText = `곡명: ${file.name}`;
 
-    trackName.innerText = `AI 멀티 세션 트랙 스펙트럼 분석 중...`;
-    detectorStatus.innerText = "(분석 연산 중)";
+    activeStemIds = [];
+    const activeCount = Math.floor(Math.random() * 5) + 8;
+    const shuffled = [...stemRegistry].sort(() => 0.5 - Math.random());
+    for (let i = 0; i < activeCount; i++) activeStemIds.push(shuffled[i].id);
 
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // Re-initialize values for stems in audioState when new file is uploaded
+    stemRegistry.forEach(s => {
+        audioState.stems[s.id] = 0;
+        audioState.mutes[s.id] = false;
+    });
 
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-        audioCtx.decodeAudioData(evt.target.result, function(buffer) {
-            originalBuffer = buffer;
-            waveformPeaks = buildWaveformPeaks(buffer);
-            updateWaveformProgress(0);
-            trackName.innerText = `곡명: ${file.name}`;
-            
-            activeStemIds = [];
-            const activeCount = Math.floor(Math.random() * 5) + 8; 
-            const shuffled = [...stemRegistry].sort(() => 0.5 - Math.random());
-            for(let i=0; i<activeCount; i++) activeStemIds.push(shuffled[i].id);
+    syncStemsUI();
+    playBtn.disabled = false;
+    setAudioTransportAvailability(true);
 
-            // Re-initialize values for stems in audioState when new file is uploaded
-            stemRegistry.forEach(s => {
-                audioState.stems[s.id] = 0;
-                audioState.mutes[s.id] = false;
-            });
+    const enableSeekBar = document.getElementById('cfg-seek-bar')?.checked !== false;
+    progressBar.disabled = !enableSeekBar;
+    downloadBtn.disabled = false;
+    playBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+    downloadBtn.classList.remove('opacity-40', 'cursor-not-allowed');
 
-            syncStemsUI();
+    const enableTubeExciter = document.getElementById('cfg-tube-exciter')?.checked !== false;
+    audioState.saturatorEnabled = enableTubeExciter;
+    audioState.saturator = enableTubeExciter ? 15 : 0;
 
-            playBtn.disabled = false;
-            
-            const enableSeekBar = document.getElementById('cfg-seek-bar')?.checked !== false;
-            progressBar.disabled = !enableSeekBar;
-            
-            downloadBtn.disabled = false;
-            playBtn.classList.remove('opacity-40', 'cursor-not-allowed');
-            downloadBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+    const saturatorInput = document.getElementById('saturator-volume');
+    if (saturatorInput) {
+        saturatorInput.value = audioState.saturator;
+        const valSpan = document.getElementById('saturator-val');
+        if (valSpan) valSpan.innerText = audioState.saturator + ' %';
+    }
+    updateUtilityEffectToggles();
+    updateCompressorRangeFills();
 
-            const enableTubeExciter = document.getElementById('cfg-tube-exciter')?.checked !== false;
-            audioState.saturatorEnabled = enableTubeExciter;
-            audioState.saturator = enableTubeExciter ? 15 : 0;
-            
-            const saturatorInput = document.getElementById('saturator-volume');
-            if (saturatorInput) {
-                saturatorInput.value = audioState.saturator;
-                const valSpan = document.getElementById('saturator-val');
-                if (valSpan) valSpan.innerText = audioState.saturator + ' %';
-            }
-            updateUtilityEffectToggles();
-            updateCompressorRangeFills();
-            
-            pausedAt = 0;
-            isPlaying = false;
-            setProgressBarValue(0);
-            updateWaveformProgress(0);
-            playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
-        }, function(err) {
-            alert("오디오 데이터 디코딩에 실패했습니다. 포맷을 다시 확인해 주세요.");
-        });
-    };
-    reader.readAsArrayBuffer(file);
-};
+    pausedAt = 0;
+    isPlaying = false;
+    setProgressBarValue(0);
+    updateWaveformProgress(0);
+    playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+}
 
 progressBar.onmousedown = () => { isUserSeeking = true; };
 progressBar.onmouseup = () => { isUserSeeking = false; };
 progressBar.oninput = (e) => {
     if (!originalBuffer) return;
+    setProgressBarValue(parseFloat(e.target.value));
     let pct = parseFloat(e.target.value) / 100;
     let targetTime = pct * originalBuffer.duration;
-    timeDisplay.innerText = `${formatTime(targetTime)} / ${formatTime(originalBuffer.duration)}`;
+    timeDisplay.innerText = formatTime(targetTime);
     updateWaveformProgress(targetTime);
 };
+
+async function seekToTime(targetTime) {
+    if (!originalBuffer) return;
+    const target = Math.max(0, Math.min(originalBuffer.duration, Number(targetTime) || 0));
+    const wasPlaying = isPlaying;
+    if (sourceNode) {
+        try { sourceNode.stop(); } catch (error) {}
+    }
+    isPlaying = false;
+    pausedAt = target;
+    setProgressBarValue(originalBuffer.duration ? (target / originalBuffer.duration) * 100 : 0);
+    updateWaveformProgress(target);
+    updateSectionRepeatUI(target);
+    if (target >= originalBuffer.duration) {
+        playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+        return;
+    }
+    if (wasPlaying) await startPlaybackAt(target);
+}
+
+if (skipBackBtn) skipBackBtn.onclick = () => seekToTime((isPlaying && audioCtx ? audioCtx.currentTime - startTime : pausedAt) - 10);
+if (skipForwardBtn) skipForwardBtn.onclick = () => seekToTime((isPlaying && audioCtx ? audioCtx.currentTime - startTime : pausedAt) + 10);
+if (seekStartBtn) seekStartBtn.onclick = () => seekToTime(0);
+if (seekEndBtn) seekEndBtn.onclick = () => seekToTime(originalBuffer?.duration || 0);
 progressBar.onchange = async (e) => {
     if (!originalBuffer) return;
     let pct = parseFloat(e.target.value) / 100;
@@ -1028,9 +1435,27 @@ async function startPlaybackAt(offset = 0) {
     finalizedOutput.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
 
+    // Read the post-pan left/right channels without adding a second audible path.
+    levelSplitterNode = audioCtx.createChannelSplitter(2);
+    levelLeftAnalyser = audioCtx.createAnalyser();
+    levelRightAnalyser = audioCtx.createAnalyser();
+    levelLeftAnalyser.fftSize = 256;
+    levelRightAnalyser.fftSize = 256;
+    levelSilentGain = audioCtx.createGain();
+    levelSilentGain.gain.value = 0;
+    finalizedOutput.connect(levelSplitterNode);
+    levelSplitterNode.connect(levelLeftAnalyser, 0);
+    levelSplitterNode.connect(levelRightAnalyser, 1);
+    levelLeftAnalyser.connect(levelSilentGain);
+    levelRightAnalyser.connect(levelSilentGain);
+    levelSilentGain.connect(audioCtx.destination);
+
     bindLiveControlTriggers();
 
-    pausedAt = Math.max(0, Math.min(offset, originalBuffer.duration));
+    const repeatOffset = sectionRepeatEnabled && sectionRepeatEnd > sectionRepeatStart && offset >= sectionRepeatEnd
+        ? sectionRepeatStart
+        : offset;
+    pausedAt = Math.max(0, Math.min(repeatOffset, originalBuffer.duration));
     startTime = audioCtx.currentTime - pausedAt;
     sourceNode.start(0, pausedAt);
     isPlaying = true;
@@ -1038,6 +1463,13 @@ async function startPlaybackAt(offset = 0) {
 
     sourceNode.onended = async () => {
         if (!isPlaying || audioCtx.currentTime - startTime < originalBuffer.duration - 0.1) return;
+
+        if (sectionRepeatEnabled && sectionRepeatEnd > sectionRepeatStart) {
+            pausedAt = sectionRepeatStart;
+            updateWaveformProgress(sectionRepeatStart);
+            await startPlaybackAt(sectionRepeatStart);
+            return;
+        }
 
         if (isLooping) {
             pausedAt = 0;
@@ -1084,9 +1516,16 @@ setInterval(() => {
     let current = isPlaying ? (audioCtx.currentTime - startTime) : pausedAt;
     if (current > originalBuffer.duration) current = originalBuffer.duration;
     if (current < 0) current = 0;
+
+    if (sectionRepeatEnabled && isPlaying && sectionRepeatEnd > sectionRepeatStart && current >= sectionRepeatEnd && !sectionRepeatSeeking) {
+        sectionRepeatSeeking = true;
+        void seekToTime(sectionRepeatStart).finally(() => { sectionRepeatSeeking = false; });
+        return;
+    }
     
-    timeDisplay.innerText = `${formatTime(current)} / ${formatTime(originalBuffer.duration)}`;
+    timeDisplay.innerText = formatTime(current);
     updateWaveformProgress(current);
+    updateSectionRepeatUI(current);
     
     if (!isUserSeeking && progressBar) {
         setProgressBarValue((current / originalBuffer.duration) * 100);
@@ -1096,11 +1535,20 @@ setInterval(() => {
 // A/B bypass routing switch
 const btnA = document.getElementById('bypass-a');
 const btnB = document.getElementById('bypass-b');
+function enableMasterProcessors() {
+    audioState.reverb.enabled = true;
+    audioState.compressor.enabled = true;
+    audioState.limiter.enabled = true;
+    reverb.updateUI(updateCompressorRangeFills);
+    compressor.updateUI(updateCompressorRangeFills);
+    limiter.updateUI(updateCompressorRangeFills);
+}
+
 function executeBypassRouting(mode) {
     isBypassed = mode;
     if (isBypassed) {
-        btnA.className = "px-2.5 py-1 rounded-md text-[11px] font-semibold bg-amber-600 text-white shadow-md";
-        btnB.className = "px-2.5 py-1 rounded-md text-[11px] font-semibold text-gray-400 hover:text-white";
+        btnA.className = "is-active";
+        btnB.className = "";
         if (isPlaying) {
             eq.applySettings(audioCtx, isBypassed);
             Object.values(stemFilters).forEach(f => f.gain.setValueAtTime(0, audioCtx.currentTime));
@@ -1109,10 +1557,11 @@ function executeBypassRouting(mode) {
             compressor.applySettings(audioCtx, () => isBypassed);
             limiter.applySettings(audioCtx, () => isBypassed);
             if(masterGainNode) masterGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            applySpatialSettings();
         }
     } else {
-        btnA.className = "px-2.5 py-1 rounded-md text-[11px] font-semibold text-gray-400 hover:text-white";
-        btnB.className = "px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-600 text-white shadow-md";
+        btnA.className = "";
+        btnB.className = "is-active";
         if (isPlaying) {
             eq.applySettings(audioCtx, isBypassed);
             const stemsDisabled = isBypassed || !audioState.stemsEnabled;
@@ -1127,11 +1576,15 @@ function executeBypassRouting(mode) {
             compressor.applySettings(audioCtx, () => isBypassed);
             limiter.applySettings(audioCtx, () => isBypassed);
             if(masterGainNode) masterGainNode.gain.setValueAtTime(audioState.master / 100, audioCtx.currentTime);
+            applySpatialSettings();
         }
     }
 }
 btnA.onclick = () => executeBypassRouting(true);
-btnB.onclick = () => executeBypassRouting(false);
+btnB.onclick = () => {
+    enableMasterProcessors();
+    executeBypassRouting(false);
+};
 
 function convertAudioBufferToWavBlob(buffer) {
     let numOfChan = buffer.numberOfChannels, length = buffer.length * numOfChan * 2 + 44,
@@ -1241,6 +1694,7 @@ downloadBtn.onclick = async () => {
 
 function animateSpectrum() {
     requestAnimationFrame(animateSpectrum);
+    updateOutputLevelMeter();
     if(!canvas || !ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1474,6 +1928,7 @@ function applyAllLoadedSettings() {
         if (valSpan) valSpan.innerText = audioState.master + ' %';
         updateRangeFill(masterInput, '#f43f5e');
     }
+    syncSpatialUI();
 
     // Update toggles
     updateUtilityEffectToggles();
@@ -1504,6 +1959,7 @@ function applyAllLoadedSettings() {
         if (masterGainNode) {
             masterGainNode.gain.setValueAtTime(audioState.master / 100, audioCtx.currentTime);
         }
+        applySpatialSettings();
     }
 }
 
@@ -1600,10 +2056,16 @@ if (dbLoadSelect) {
                 reader.onload = function(evt) {
                     audioCtx.decodeAudioData(evt.target.result, function(buffer) {
                         originalBuffer = buffer;
+                        sectionRepeatEnabled = false;
+                        sectionRepeatInitialized = false;
+                        sectionRepeatStart = 0;
+                        sectionRepeatEnd = buffer.duration;
+                        updateSectionRepeatUI(0);
                         waveformPeaks = buildWaveformPeaks(buffer);
                         updateWaveformProgress(0);
 
                         playBtn.disabled = false;
+                        setAudioTransportAvailability(true);
                         progressBar.disabled = false; 
                         downloadBtn.disabled = false;
                         playBtn.classList.remove('opacity-40', 'cursor-not-allowed');
@@ -1627,12 +2089,18 @@ if (dbLoadSelect) {
                 currentAudioFileBlob = null;
                 currentAudioFileName = "";
                 originalBuffer = null;
+                sectionRepeatEnabled = false;
+                sectionRepeatInitialized = false;
+                sectionRepeatStart = 0;
+                sectionRepeatEnd = 0;
+                updateSectionRepeatUI(0);
                 waveformPeaks = [];
                 updateWaveformProgress(0);
                 trackName.innerText = `Waiting for audio upload...`;
                 detectorStatus.innerText = "(추출 대기 중)";
 
                 playBtn.disabled = true;
+                setAudioTransportAvailability(false);
                 progressBar.disabled = true; 
                 downloadBtn.disabled = true;
                 playBtn.classList.add('opacity-40', 'cursor-not-allowed');
