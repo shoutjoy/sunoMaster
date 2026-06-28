@@ -512,6 +512,7 @@ class ReverbEffector {
             { id: 'reverb-high', key: 'highGain', rebuild: false }
         ];
 
+        this.initTouchSteppers(reverbControls);
         reverbControls.forEach(({ id, key, rebuild }) => {
             const input = document.getElementById(id);
             if (!input) return;
@@ -520,6 +521,70 @@ class ReverbEffector {
                 this.updateUI(updateRangeFillCallback);
                 if (getPlayStateCallback()) this.applySettings(context, getBypassStateCallback, rebuild);
             };
+        });
+    }
+
+    initTouchSteppers(reverbControls) {
+        reverbControls.forEach(({ id }) => {
+            const input = document.getElementById(id);
+            if (!input || input.type !== 'range' || input.dataset.stepperReady === 'true') return;
+            input.dataset.stepperReady = 'true';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'reverb-stepper';
+
+            const minus = document.createElement('button');
+            minus.type = 'button';
+            minus.className = 'reverb-step-btn';
+            minus.dataset.stepDir = '-1';
+            minus.setAttribute('aria-label', `${id} decrease`);
+            minus.textContent = '−';
+
+            const plus = document.createElement('button');
+            plus.type = 'button';
+            plus.className = 'reverb-step-btn';
+            plus.dataset.stepDir = '1';
+            plus.setAttribute('aria-label', `${id} increase`);
+            plus.textContent = '+';
+
+            input.parentNode.insertBefore(wrapper, input);
+            wrapper.append(minus, input, plus);
+
+            const nudge = (direction) => {
+                const min = Number(input.min || 0);
+                const max = Number(input.max || 100);
+                const step = Number(input.step || 1) || 1;
+                const current = Number(input.value || 0);
+                const next = Math.max(min, Math.min(max, current + direction * step));
+                input.value = String(step < 1 ? Number(next.toFixed(3)) : Math.round(next));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+
+            [minus, plus].forEach((button) => {
+                let repeatDelayTimer = 0;
+                let repeatTimer = 0;
+                const direction = Number(button.dataset.stepDir);
+                const clearRepeat = () => {
+                    window.clearTimeout(repeatDelayTimer);
+                    window.clearInterval(repeatTimer);
+                    repeatDelayTimer = 0;
+                    repeatTimer = 0;
+                };
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    nudge(direction);
+                });
+                button.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    button.setPointerCapture?.(event.pointerId);
+                    repeatDelayTimer = window.setTimeout(() => {
+                        repeatTimer = window.setInterval(() => nudge(direction), 80);
+                    }, 360);
+                });
+                button.addEventListener('pointerup', clearRepeat);
+                button.addEventListener('pointercancel', clearRepeat);
+                button.addEventListener('pointerleave', clearRepeat);
+            });
         });
     }
 

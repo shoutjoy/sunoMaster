@@ -43,6 +43,7 @@ class EQEffector {
             balladVocal: [-0.8, -0.6, -0.3, 0.0, 0.2, 0.1, -0.3, -0.4, 0.0, 0.4, 0.9, 1.6, 2.0, 1.8, 1.4, 0.9, 0.5, 0.2, 0.0, -0.3],
             acousticNatural: [-0.9, -0.6, -0.2, 0.3, 0.5, 0.4, 0.1, -0.2, 0.0, 0.3, 0.6, 1.0, 1.2, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0, -0.2],
             rockPunch: [0.2, 0.5, 0.9, 1.2, 0.8, -0.1, -0.6, -0.8, -0.4, 0.1, 0.5, 1.0, 1.6, 1.8, 1.5, 1.0, 0.5, 0.1, -0.2, -0.5],
+            punkRock: [-0.6, -0.3, 0.32, 1.07, 7.16, 2.4, 3.37, -0.53, -2.24, -0.1, 5.82, 2.52, 2.76, -3.34, -3.58, -2.24, -1.07, -1.36, -0.8, -0.6],
             metalTight: [-0.6, -0.3, 0.3, 0.9, 0.6, -0.4, -1.0, -1.2, -0.6, -0.1, 0.5, 1.2, 1.9, 2.1, 1.8, 1.3, 0.8, 0.3, -0.1, -0.4],
             hiphop808: [1.0, 1.3, 1.6, 1.4, 0.8, -0.1, -0.7, -0.9, -0.5, -0.1, 0.2, 0.6, 1.0, 1.1, 0.9, 0.7, 0.5, 0.3, 0.1, -0.2],
             edmClub: [0.8, 1.1, 1.4, 1.6, 1.0, 0.1, -0.7, -1.0, -0.7, -0.2, 0.3, 0.9, 1.5, 1.8, 1.8, 1.7, 1.5, 1.2, 0.9, 0.5],
@@ -66,6 +67,7 @@ class EQEffector {
             balladVocal: "Ballad Vocal",
             acousticNatural: "Acoustic Natural",
             rockPunch: "Rock Punch",
+            punkRock: "Punk Rock",
             metalTight: "Metal Tight",
             hiphop808: "Hip-Hop 808",
             edmClub: "EDM Club",
@@ -84,7 +86,7 @@ class EQEffector {
         return [
             "flat", "streamingSafe", "masteringBalanced", "masteringLoudness",
             "popModern", "kpopBright", "balladVocal", "acousticNatural",
-            "rockPunch", "metalTight", "hiphop808", "edmClub",
+            "rockPunch", "punkRock", "metalTight", "hiphop808", "edmClub",
             "rnbSmooth", "jazzWarm", "orchestralWide", "podcastVoice",
             "warm", "vocal", "punch", "clarity", "smile"
         ];

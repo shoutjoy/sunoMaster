@@ -12,8 +12,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260628-33">
-    <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-6">
+    <link rel="stylesheet" href="index.css?v=20260628-39">
+    <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-8">
 </head>
 
 <body class="text-gray-200 min-h-screen p-3 md:p-6 font-sans select-none">
@@ -32,6 +32,16 @@
             </div>
             <div class="relative w-full sm:w-auto space-y-2">
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button id="collapse-all-btn" type="button"
+                        class="global-fold-btn bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                        title="모든 패널 접기">
+                        <i class="fa-solid fa-angles-up"></i> 모두 접기
+                    </button>
+                    <button id="expand-all-btn" type="button"
+                        class="global-fold-btn bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1"
+                        title="모든 패널 펼치기">
+                        <i class="fa-solid fa-angles-down"></i> 모두 펼치기
+                    </button>
                     <button id="theme-toggle" type="button" aria-pressed="false"
                         class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
                         <i id="theme-icon" class="fa-solid fa-sun"></i> <span id="theme-label">Light</span>
@@ -59,11 +69,11 @@
                     <div class="player-settings-title"><i class="fa-solid fa-sliders"></i> 플레이바 위치</div>
                     <label>
                         <input id="player-mode-inner" type="radio" name="player-mode" value="inner" checked>
-                        <span><b>Inner</b><small>웨이브폼 안에 고정</small></span>
+                        <span><b>Inner</b><small>웨이브폼 안에 고정 · Alt+2</small></span>
                     </label>
                     <label>
                         <input id="player-mode-float" type="radio" name="player-mode" value="float">
-                        <span><b>Float</b><small>화면 하단에 전역 고정</small></span>
+                        <span><b>Float</b><small>화면 하단에 전역 고정 · Alt+1</small></span>
                     </label>
                     <div class="player-settings-divider"></div>
                     <div class="player-settings-title"><i class="fa-solid fa-eye"></i> 화면 표시</div>
@@ -75,6 +85,10 @@
                         <input id="setting-show-ai-presets" type="checkbox">
                         <span><b>AI 100 Micro Presets</b><small>고급 미세 프리셋 라이브러리 표시 · 기본 숨김</small></span>
                     </label>
+                    <div class="spectrum-band-setting">
+                        <label for="ai-micro-preset-scale"><b>AI 100 값 배율</b><small>0.1–2.0 · 기본 0.3</small></label>
+                        <input id="ai-micro-preset-scale" type="number" min="0.1" max="2" step="0.05" value="0.3" inputmode="decimal">
+                    </div>
                     <div class="spectrum-band-setting">
                         <label for="spectrum-band-count"><b>FFT 주파수 밴드</b><small>8–64개 · 기본 20개</small></label>
                         <input id="spectrum-band-count" type="number" min="8" max="64" step="1" value="20" inputmode="numeric">
@@ -145,6 +159,25 @@
                             </div>
                         </div>
                     </div>
+
+                    <div id="audio-upload-choice" class="audio-upload-choice hidden" role="dialog" aria-modal="true"
+                        aria-labelledby="audio-upload-choice-title">
+                        <div class="audio-upload-choice-card">
+                            <p id="audio-upload-choice-title" class="audio-upload-choice-title">
+                                새 음원 처리 방식 선택
+                            </p>
+                            <p id="audio-upload-choice-file" class="audio-upload-choice-file">새 파일</p>
+                            <div class="audio-upload-choice-actions">
+                                <button id="audio-upload-replace" type="button" class="audio-choice-btn is-replace">
+                                    <i class="fa-solid fa-rotate"></i> 현재 음원 교체
+                                </button>
+                                <button id="audio-upload-append" type="button" class="audio-choice-btn is-append">
+                                    <i class="fa-solid fa-timeline"></i> 오디오 타임라인에 추가
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                 </section>
 
                 <!-- PROJECT MANAGEMENT DASHBOARD -->
@@ -216,9 +249,9 @@
                                     <span>구간 이동 게이지 활성화</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-400 hover:text-gray-250 select-none">
-                                    <input type="checkbox" id="cfg-tube-exciter" checked
+                                    <input type="checkbox" id="cfg-tube-exciter"
                                         class="rounded bg-gray-950 border-gray-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-900 h-3.5 w-3.5 cursor-pointer">
-                                    <span>4배 오버샘플링 진공관 활성화</span>
+                                    <span>4배 오버샘플링 진공관 활성화 기본값</span>
                                 </label>
                             </div>
                         </div>
@@ -246,7 +279,7 @@
 
                     <canvas id="visualizer" class="spectrum-analyzer-canvas w-full mt-2 z-10"></canvas>
 
-                    <div id="track-name" class="text-[11px] text-blue-400/80 font-mono truncate text-center z-10">
+                    <div id="track-name" class="current-track-title">
                         Waiting for audio source signal...</div>
                     <button id="spectrum-height-resizer" type="button" class="spectrum-height-resizer" aria-label="FFT 분석기 높이 조절" title="위아래로 드래그하여 분석기 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
                 </div>
@@ -326,9 +359,10 @@
                                 <div class="reverb-visual-footer"><span>ER</span><span>TAIL</span></div>
                                 <button type="button" class="effect-graph-resizer" data-resize-target="reverb-envelope-shell" data-resize-key="jd-reverb-graph-height" aria-label="리버브 그래프 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
                             </div>
-                            <div class="reverb-eq-panel">
+                            <div id="reverb-eq-shell" class="effect-graph-shell reverb-eq-panel">
                                 <div class="effect-graph-head"><span>REVERB EQ</span><small>Low / High 드래그</small></div>
                                 <canvas id="reverb-eq-canvas" aria-label="리버브 EQ 조절 그래프"></canvas>
+                                <button type="button" class="effect-graph-resizer" data-resize-target="reverb-eq-shell" data-resize-key="jd-reverb-eq-graph-height" aria-label="리버브 EQ 그래프 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
@@ -528,6 +562,28 @@
                                     <button type="button"
                                         class="comp-step-btn text-cyan-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
                                         data-target="comp-makeup" data-dir="1">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="audio-timeline-panel" class="audio-timeline-panel">
+                        <button id="audio-timeline-header" type="button" class="audio-timeline-header"
+                            aria-expanded="true" aria-controls="audio-timeline-content">
+                            <span><i class="fa-solid fa-music"></i> 오디오 타임라인</span>
+                            <span class="audio-timeline-hint">중복 업로드 시 여기에 순서대로 추가</span>
+                            <span id="audio-timeline-summary">0 clips</span>
+                            <i id="audio-timeline-chevron" class="fa-solid fa-chevron-up"></i>
+                        </button>
+                        <div id="audio-timeline-content" class="audio-timeline-content">
+                            <div class="audio-timeline-help">
+                                <span>순차 재생 · 새 음원 업로드 시 “오디오 타임라인에 추가”를 선택하면 다음 순서로 재생됩니다.</span>
+                                <span id="audio-timeline-track-count">0개 트랙</span>
+                            </div>
+                            <div id="audio-timeline-strip" class="audio-timeline-strip">
+                                <div class="audio-timeline-empty">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>음원을 업로드하면 이곳에 오디오 타임라인이 생성됩니다.</span>
                                 </div>
                             </div>
                         </div>
@@ -826,6 +882,132 @@
                     </div>
                 </section>
 
+                <!-- Master Saturation -->
+                <section id="master-saturation-panel" class="saturation-panel">
+                    <header class="saturation-header">
+                        <h3>
+                            <i class="fa-solid fa-microphone-lines"></i>
+                            <span>MASTER SATURATION</span>
+                        </h3>
+                        <div class="saturation-header-actions">
+                            <button id="saturation-toggle" type="button" aria-pressed="false" class="saturation-toggle">OUT</button>
+                            <select id="saturation-preset" class="saturation-preset" aria-label="Saturation preset">
+                                <option value="default">Default</option>
+                            </select>
+                            <button id="saturation-collapse-btn" type="button" class="saturation-collapse-btn"
+                                title="Saturation 접기/펼치기" aria-controls="saturation-collapse-content"
+                                aria-expanded="true">
+                                <i id="saturation-collapse-icon" class="fa-solid fa-chevron-up"></i>
+                            </button>
+                        </div>
+                    </header>
+                    <div id="saturation-collapse-content" class="saturation-collapse-content">
+                        <div class="saturation-main-grid">
+                            <article class="saturation-card saturation-harmonics-card">
+                                <div class="saturation-card-title">
+                                    <span>HARMONIC SPECTRUM</span>
+                                    <span id="saturation-harmonic-total">-24.7 dB</span>
+                                </div>
+                                <canvas id="saturation-harmonics-canvas" aria-label="Saturation harmonic spectrum"></canvas>
+                            </article>
+                            <article class="saturation-card">
+                                <div class="saturation-card-title">
+                                    <span>SOFT CLIP CURVE</span>
+                                    <span id="saturation-clip-gr">-1.2 dB GR</span>
+                                </div>
+                                <canvas id="saturation-curve-canvas" aria-label="Saturation soft clip curve"></canvas>
+                            </article>
+                            <article class="saturation-card">
+                                <div class="saturation-card-title">
+                                    <span>FREQUENCY RESPONSE</span>
+                                    <span id="saturation-response-mid">+1.8 dB</span>
+                                </div>
+                                <canvas id="saturation-response-canvas" aria-label="Saturation frequency response"></canvas>
+                            </article>
+                        </div>
+
+                        <article class="saturation-card saturation-band-card">
+                            <div class="saturation-card-title">
+                                <span>SATURATION BAND</span>
+                                <span id="saturation-band-info">223 Hz - 2.35 kHz</span>
+                            </div>
+                            <canvas id="saturation-band-canvas" aria-label="Saturation band visualizer"></canvas>
+                        </article>
+
+                        <div class="saturation-control-grid">
+                            <label class="saturation-control saturation-drive-control">
+                                <span>DRIVE <b id="saturation-drive-val">4.6 dB</b></span>
+                                <input id="saturation-drive" class="saturation-slider" type="range" min="0" max="48" step="0.1" value="4.6">
+                            </label>
+                            <label class="saturation-control">
+                                <span>MIX <b id="saturation-mix-val">61 %</b></span>
+                                <input id="saturation-mix" class="saturation-slider" type="range" min="0" max="100" step="1" value="61">
+                            </label>
+                            <label class="saturation-control">
+                                <span>TONE <b id="saturation-tone-val">Bright +12</b></span>
+                                <input id="saturation-tone" class="saturation-slider" type="range" min="-100" max="100" step="1" value="12">
+                            </label>
+                            <label class="saturation-control">
+                                <span>BIAS <b id="saturation-bias-val">0</b></span>
+                                <input id="saturation-bias" class="saturation-slider" type="range" min="-100" max="100" step="1" value="0">
+                            </label>
+                            <label class="saturation-control">
+                                <span>CHARACTER <b id="saturation-character-val">42 %</b></span>
+                                <input id="saturation-character" class="saturation-slider" type="range" min="0" max="100" step="1" value="42">
+                            </label>
+                            <label class="saturation-control">
+                                <span>EVEN / ODD <b id="saturation-evenodd-val">35% EVEN</b></span>
+                                <input id="saturation-evenodd" class="saturation-slider" type="range" min="0" max="100" step="1" value="35">
+                            </label>
+                            <label class="saturation-control">
+                                <span>DYNAMICS <b id="saturation-dynamics-val">-10 %</b></span>
+                                <input id="saturation-dynamics" class="saturation-slider" type="range" min="-100" max="100" step="1" value="-10">
+                            </label>
+                            <label class="saturation-control">
+                                <span>OVERSAMPLING <b id="saturation-oversampling-val">4x</b></span>
+                                <select id="saturation-oversampling" class="saturation-select">
+                                    <option value="1">1x</option>
+                                    <option value="2">2x</option>
+                                    <option value="4" selected>4x</option>
+                                </select>
+                            </label>
+                            <div class="saturation-control saturation-mode-control">
+                                <span>MODE</span>
+                                <div class="saturation-mode-buttons">
+                                    <button type="button" data-saturation-mode="tube" class="is-active">TUBE</button>
+                                    <button type="button" data-saturation-mode="tape">TAPE</button>
+                                    <button type="button" data-saturation-mode="transformer">TRANSFORMER</button>
+                                    <button type="button" data-saturation-mode="clean">CLEAN</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="saturation-output-master">
+                            <label class="saturation-output-large">
+                                <span>
+                                    <strong>OUTPUT</strong>
+                                    <b id="saturation-output-val">0.0 dB</b>
+                                </span>
+                                <input id="saturation-output" class="saturation-slider saturation-output-slider" type="range" min="-12" max="12" step="0.1" value="0">
+                            </label>
+                            <div class="saturation-output-meter" aria-label="Saturation output level meter">
+                                <div class="saturation-output-meter-head">
+                                    <span>LEVEL METER</span>
+                                    <b id="saturation-output-meter-db">-inf dB</b>
+                                </div>
+                                <div class="saturation-output-meter-track">
+                                    <i></i><i></i><i></i>
+                                    <div id="saturation-output-meter-fill"></div>
+                                </div>
+                                <div class="saturation-output-meter-scale">
+                                    <span>-48</span><span>-24</span><span>-12</span><span>-6</span><span>0 dB</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+
                 <!-- AI 100-Preset Mastering Library -->
                 <div id="ai-100-preset-section" class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-2 shadow-xl" hidden>
                     <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -838,12 +1020,13 @@
         </div>
     </div>
 
-    <script src="effector/EQ/eq.js?v=20260628-9"></script>
-    <script src="effector/reverb/reverb.js?v=20260628-18"></script>
+    <script src="effector/EQ/eq.js?v=20260628-10"></script>
+    <script src="effector/reverb/reverb.js?v=20260628-19"></script>
     <script src="effector/Compressor/compressor.js?v=20260628-20"></script>
     <script src="effector/limitor/limiter.js?v=20260628-8"></script>
+    <script src="effector/Saturation/saturation.js?v=20260628-5"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260628-7"></script>
-    <script src="index.js?v=20260628-36"></script>
+    <script src="index.js?v=20260628-44"></script>
 </body>
 
 </html>

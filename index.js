@@ -2,6 +2,8 @@ const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
 const themeLabel = document.getElementById('theme-label');
 const downloadBtn = document.getElementById('download-btn');
+const collapseAllBtn = document.getElementById('collapse-all-btn');
+const expandAllBtn = document.getElementById('expand-all-btn');
 
 function applyTheme(theme) {
     const isLight = theme === 'light';
@@ -49,6 +51,7 @@ const stemConsoleVisibilitySetting = document.getElementById('setting-show-stem-
 const stemConsoleSection = document.getElementById('stem-console-section');
 const aiPresetVisibilitySetting = document.getElementById('setting-show-ai-presets');
 const aiPresetSection = document.getElementById('ai-100-preset-section');
+const aiMicroPresetScaleInput = document.getElementById('ai-micro-preset-scale');
 const spectrumBandCountInput = document.getElementById('spectrum-band-count');
 const spectrumBarsBtn = document.getElementById('spectrum-bars-btn');
 const spectrumWaveBtn = document.getElementById('spectrum-wave-btn');
@@ -58,12 +61,16 @@ const PLAYER_MODE_STORAGE_KEY = 'jd-player-display-mode';
 const EXPORT_PREFIX_STORAGE_KEY = 'jd-export-filename-prefix';
 const STEM_CONSOLE_VISIBLE_STORAGE_KEY = 'jd-show-stem-console';
 const AI_PRESETS_VISIBLE_STORAGE_KEY = 'jd-show-ai-100-presets';
+const AI_MICRO_PRESET_SCALE_STORAGE_KEY = 'jd-ai-micro-preset-scale';
 const SPECTRUM_BAND_COUNT_STORAGE_KEY = 'jd-spectrum-band-count';
 const SPECTRUM_VIEW_MODE_STORAGE_KEY = 'jd-spectrum-view-mode';
 const DEFAULT_EXPORT_PREFIX = 'mastered_';
 const DEFAULT_SPECTRUM_BAND_COUNT = 20;
+const DEFAULT_AI_MICRO_PRESET_SCALE = 0.3;
 let spectrumBandCount = DEFAULT_SPECTRUM_BAND_COUNT;
 let spectrumViewMode = 'bars';
+let aiMicroPresetScale = DEFAULT_AI_MICRO_PRESET_SCALE;
+let activeMicroPresetIndex = null;
 
 function getStoredPlayerMode() {
     try {
@@ -126,6 +133,22 @@ if (playerFloatToggle) {
         applyPlayerMode(document.body.classList.contains('player-float') ? 'inner' : 'float');
     };
 }
+document.addEventListener('keydown', (event) => {
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = event.target;
+    const tagName = target?.tagName?.toLowerCase();
+    const isEditable = target?.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+    if (isEditable) return;
+    if (event.key === '1' || event.code === 'Digit1' || event.code === 'Numpad1') {
+        event.preventDefault();
+        applyPlayerMode('float');
+        setPlayerSettingsOpen(false);
+    } else if (event.key === '2' || event.code === 'Digit2' || event.code === 'Numpad2') {
+        event.preventDefault();
+        applyPlayerMode('inner');
+        setPlayerSettingsOpen(false);
+    }
+});
 applyPlayerMode(getStoredPlayerMode(), false);
 
 function applyStemConsoleVisibility(visible, persist = true) {
@@ -170,6 +193,48 @@ if (aiPresetVisibilitySetting) {
         applyAiPresetVisibility(aiPresetVisibilitySetting.checked);
         window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
     };
+}
+
+function normalizeAiMicroPresetScale(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed)
+        ? Math.max(0.1, Math.min(2, Math.round(parsed * 100) / 100))
+        : DEFAULT_AI_MICRO_PRESET_SCALE;
+}
+
+function reapplyActiveMicroPreset() {
+    if (activeMicroPresetIndex === null || activeMicroPresetIndex < 0) return;
+    const name = presetNames[activeMicroPresetIndex];
+    if (!name) return;
+    audioState.eqEnabled = true;
+    const presetValues = buildMicroMasterPreset(name, activeMicroPresetIndex);
+    presetValues.forEach((value, idx) => {
+        eq.setEQValue(idx, value, audioCtx, getPlayState, getBypassState, false);
+    });
+    eq.updateUI();
+    if (audioCtx && isPlaying) eq.applySettings(audioCtx, getBypassState());
+}
+
+function applyAiMicroPresetScale(value, persist = true) {
+    aiMicroPresetScale = normalizeAiMicroPresetScale(value);
+    if (aiMicroPresetScaleInput) aiMicroPresetScaleInput.value = String(aiMicroPresetScale);
+    if (persist) {
+        try { localStorage.setItem(AI_MICRO_PRESET_SCALE_STORAGE_KEY, String(aiMicroPresetScale)); } catch (error) {}
+    }
+    reapplyActiveMicroPreset();
+}
+
+let storedAiMicroPresetScale = DEFAULT_AI_MICRO_PRESET_SCALE;
+try {
+    storedAiMicroPresetScale = localStorage.getItem(AI_MICRO_PRESET_SCALE_STORAGE_KEY) || DEFAULT_AI_MICRO_PRESET_SCALE;
+} catch (error) {}
+applyAiMicroPresetScale(storedAiMicroPresetScale, false);
+
+if (aiMicroPresetScaleInput) {
+    aiMicroPresetScaleInput.oninput = () => {
+        if (aiMicroPresetScaleInput.value !== '') applyAiMicroPresetScale(aiMicroPresetScaleInput.value);
+    };
+    aiMicroPresetScaleInput.onblur = () => applyAiMicroPresetScale(aiMicroPresetScaleInput.value);
 }
 
 function normalizeSpectrumBandCount(value) {
@@ -280,6 +345,21 @@ const audioState = {
     deesserEnabled: false,
     saturator: 0, 
     saturatorEnabled: false,
+    masterSaturation: {
+        enabled: false,
+        drive: 4.6,
+        mix: 61,
+        output: 0,
+        tone: 12,
+        bias: 0,
+        character: 42,
+        evenOdd: 35,
+        dynamics: -10,
+        oversampling: 4,
+        mode: "tube",
+        bandLow: 223,
+        bandHigh: 2350
+    },
     reverb: {
         enabled: false,
         preDelay: 105,
@@ -320,6 +400,7 @@ const eq = new EQEffector(audioState);
 const reverb = new ReverbEffector(audioState);
 const compressor = new CompressorEffector(audioState);
 const limiter = new LimiterEffector(audioState);
+const saturation = new SaturationEffector(audioState);
 
 let audioCtx = null;
 let originalBuffer = null;
@@ -344,6 +425,9 @@ let waveformLoadingFrame = 0;
 let waveformMessageTimer = 0;
 let currentAudioFileBlob = null;
 let currentAudioFileName = "";
+let audioTimelineClips = [];
+let pendingUploadChoiceResolve = null;
+let timelineRebuildInProgress = false;
 
 function sanitizeFilenamePart(value) {
     return String(value ?? '').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').slice(0, 80);
@@ -443,6 +527,16 @@ const waveformCanvas = document.getElementById('audio-waveform');
 const waveformCtx = waveformCanvas ? waveformCanvas.getContext('2d') : null;
 const waveformTime = document.getElementById('waveform-time');
 const waveformLoadMessage = document.getElementById('waveform-load-message');
+const audioUploadChoice = document.getElementById('audio-upload-choice');
+const audioUploadChoiceFile = document.getElementById('audio-upload-choice-file');
+const audioUploadReplaceBtn = document.getElementById('audio-upload-replace');
+const audioUploadAppendBtn = document.getElementById('audio-upload-append');
+const audioTimelinePanel = document.getElementById('audio-timeline-panel');
+const audioTimelineHeader = document.getElementById('audio-timeline-header');
+const audioTimelineContent = document.getElementById('audio-timeline-content');
+const audioTimelineChevron = document.getElementById('audio-timeline-chevron');
+const audioTimelineSummary = document.getElementById('audio-timeline-summary');
+const audioTimelineStrip = document.getElementById('audio-timeline-strip');
 const compGrBar = document.getElementById('comp-gr-bar');
 const compGrVal = document.getElementById('comp-gr-val');
 
@@ -547,6 +641,90 @@ function setupMasterEffectPanels() {
 
 setupMasterEffectPanels();
 
+function setPanelCollapsed(content, collapsed, { hiddenClass = 'hidden', icon = null, button = null } = {}) {
+    if (!content) return;
+    if (hiddenClass === 'is-collapsed') {
+        content.classList.toggle('is-collapsed', collapsed);
+    } else {
+        content.classList.toggle('hidden', collapsed);
+    }
+    if (button) button.setAttribute('aria-expanded', String(!collapsed));
+    if (icon) icon.className = `fa-solid fa-chevron-${collapsed ? 'down' : 'up'}`;
+}
+
+function setAllPanelsCollapsed(collapsed) {
+    setPanelCollapsed(
+        document.getElementById('audio-analysis-content'),
+        collapsed,
+        {
+            button: document.getElementById('audio-analysis-toggle'),
+            icon: document.getElementById('audio-analysis-chevron')
+        }
+    );
+    setPanelCollapsed(
+        document.getElementById('project-collapse-content'),
+        collapsed,
+        { icon: document.getElementById('project-collapse-icon') }
+    );
+    setPanelCollapsed(
+        document.getElementById('loudness-panel-content'),
+        collapsed,
+        {
+            hiddenClass: 'is-collapsed',
+            button: document.getElementById('loudness-collapse-btn'),
+            icon: document.querySelector('#loudness-collapse-btn i')
+        }
+    );
+    setPanelCollapsed(
+        document.getElementById('audio-timeline-content'),
+        collapsed,
+        {
+            button: document.getElementById('audio-timeline-header'),
+            icon: document.getElementById('audio-timeline-chevron')
+        }
+    );
+    setPanelCollapsed(
+        document.getElementById('stems-collapse-content'),
+        collapsed,
+        { icon: document.getElementById('stems-collapse-icon') }
+    );
+    setPanelCollapsed(
+        document.getElementById('eq-collapse-content'),
+        collapsed,
+        {
+            button: document.getElementById('eq-collapse-btn'),
+            icon: document.getElementById('eq-collapse-icon')
+        }
+    );
+    setPanelCollapsed(
+        document.getElementById('saturation-collapse-content'),
+        collapsed,
+        {
+            hiddenClass: 'is-collapsed',
+            button: document.getElementById('saturation-collapse-btn'),
+            icon: document.getElementById('saturation-collapse-icon')
+        }
+    );
+    document.querySelectorAll('.main-effect-panel .effect-panel-content').forEach((content) => {
+        const panel = content.closest('.main-effect-panel');
+        const button = panel?.querySelector('.effect-collapse-btn');
+        const icon = button?.querySelector('i');
+        setPanelCollapsed(content, collapsed, { hiddenClass: 'is-collapsed', button, icon });
+    });
+    if (!collapsed) {
+        window.setTimeout(() => {
+            handleResize();
+            drawLoudnessHistory();
+            limiter.updateLimiterVisualizers?.();
+            reverb.updateGraphs?.();
+            saturation.updateVisualizers?.();
+        }, 0);
+    }
+}
+
+collapseAllBtn?.addEventListener('click', () => setAllPanelsCollapsed(true));
+expandAllBtn?.addEventListener('click', () => setAllPanelsCollapsed(false));
+
 function setupPlayerSignalLevel() {
     const signalPanel = document.getElementById('signal-output-panel');
     const transportVolume = document.querySelector('.transport-volume');
@@ -573,6 +751,7 @@ function setupResizableEffectGraphs() {
             reverb.updateReverbVisualizers?.();
             compressor.drawCurve();
             eq.drawEQCanvas?.();
+            saturation.updateVisualizers?.();
         };
         const finish = (event) => {
             if (!resizer.classList.contains('is-resizing')) return;
@@ -1108,6 +1287,7 @@ noneBtn.onclick = () => {
     document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
     noneBtn.classList.add('genre-active');
     audioState.eqEnabled = false;
+    activeMicroPresetIndex = null;
     
     eq.frequencies.forEach((_, idx) => {
         eq.setEQValue(idx, 0, audioCtx, getPlayState, getBypassState, false);
@@ -1144,7 +1324,7 @@ function buildMicroMasterPreset(name, presetIndex) {
         if (name.includes("Dense Trim") || name.includes("Translation") || name.includes("Mono Safe")) value -= gaussian(250, 0.3, 0.18) + gaussian(4200, 0.28, 0.15);
 
         const microVariation = Math.sin((presetIndex + 1) * 0.71 + idx * 0.83) * 0.08;
-        const shaped = Math.max(-1.35, Math.min(1.35, value + microVariation)) * 0.1;
+        const shaped = Math.max(-1.35, Math.min(1.35, value + microVariation)) * aiMicroPresetScale;
         return Math.round(shaped * 100) / 100;
     };
     return eq.frequencies.map((_, idx) => valueAt(idx));
@@ -1158,6 +1338,7 @@ presetNames.forEach((name, i) => {
         document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
         btn.classList.add('genre-active');
         audioState.eqEnabled = true;
+        activeMicroPresetIndex = i;
         const presetValues = buildMicroMasterPreset(name, i);
         presetValues.forEach((value, idx) => {
             eq.setEQValue(idx, value, audioCtx, getPlayState, getBypassState, false);
@@ -1266,7 +1447,10 @@ function completeDecodedAudioWithLoading(file, buffer) {
     const remaining = Math.max(0, 850 - elapsed);
     window.setTimeout(() => {
         if (loadingState && waveformLoadingState !== loadingState) return;
-        handleDecodedAudio(file, buffer);
+        void handleDecodedAudio(file, buffer).catch((error) => {
+            stopWaveformLoading(false, error?.message || '파일 로드 실패');
+            console.error('Audio timeline upload failed:', error);
+        });
     }, remaining);
 }
 
@@ -1388,6 +1572,7 @@ function updateWaveformProgress(current = 0) {
     waveformProgress = duration ? Math.max(0, Math.min(1, current / duration)) : 0;
     if (waveformTime) waveformTime.innerText = `${formatTime(current)} / ${formatTime(duration)}`;
     drawAudioWaveform(waveformProgress);
+    updateAudioTimelinePlayhead(current);
 }
 
 function updateLoopButton() {
@@ -1599,6 +1784,7 @@ function updateCompressorRangeFills() {
     document.querySelectorAll('.comp-slider').forEach(input => updateRangeFill(input, '#22d3ee'));
     document.querySelectorAll('.reverb-slider').forEach(input => updateRangeFill(input, '#a855f7'));
     document.querySelectorAll('.limiter-slider').forEach(input => updateRangeFill(input, '#84cc16'));
+    document.querySelectorAll('.saturation-slider').forEach(input => updateRangeFill(input, '#f59e0b'));
     updateRangeFill(document.getElementById('master-volume'), '#f43f5e');
     updateRangeFill(document.getElementById('noise-reducer'), '#f43f5e');
     updateRangeFill(document.getElementById('deesser-reducer'), '#0ea5e9');
@@ -1697,7 +1883,10 @@ async function compileAudioGraph(context, srcNode) {
     // 1. EQ
     lastOutputNode = eq.connect(context, lastOutputNode, isBypassed);
 
-    // 2. 20 Channel smart stems
+    // 2. Master saturation
+    lastOutputNode = saturation.connect(context, lastOutputNode, () => isBypassed);
+
+    // 3. 20 Channel smart stems
     stemFilters = {};
     const stemsDisabled = isBypassed || !audioState.stemsEnabled;
     stemRegistry.forEach((stem) => {
@@ -1714,7 +1903,7 @@ async function compileAudioGraph(context, srcNode) {
         }
     });
 
-    // 3. Noise reduction
+    // 4. Noise reduction
     noiseFilters.lowCut = context.createBiquadFilter();
     noiseFilters.lowCut.type = 'highpass';
     noiseFilters.highCut = context.createBiquadFilter();
@@ -1728,7 +1917,7 @@ async function compileAudioGraph(context, srcNode) {
     noiseFilters.lowCut.connect(noiseFilters.highCut);
     lastOutputNode = noiseFilters.highCut;
 
-    // 4. De-Esser
+    // 5. De-Esser
     noiseFilters.deEsser = context.createBiquadFilter();
     noiseFilters.deEsser.type = 'peaking';
     noiseFilters.deEsser.frequency.value = 6500; 
@@ -1738,7 +1927,7 @@ async function compileAudioGraph(context, srcNode) {
     lastOutputNode.connect(noiseFilters.deEsser);
     lastOutputNode = noiseFilters.deEsser;
 
-    // 5. Tubes Harmonics Exciter
+    // 6. Tubes Harmonics Exciter
     noiseFilters.waveShaper = context.createWaveShaper();
     noiseFilters.waveShaper.curve = makeExciterCurve((!isBypassed && audioState.saturatorEnabled) ? audioState.saturator : 0);
     noiseFilters.waveShaper.oversample = '4x'; 
@@ -1746,13 +1935,13 @@ async function compileAudioGraph(context, srcNode) {
     lastOutputNode.connect(noiseFilters.waveShaper);
     lastOutputNode = noiseFilters.waveShaper;
 
-    // 6. Reverb
+    // 7. Reverb
     lastOutputNode = reverb.connect(context, lastOutputNode, () => isBypassed);
 
-    // 7. Compressor
+    // 8. Compressor
     lastOutputNode = compressor.connect(context, lastOutputNode, () => isBypassed);
 
-    // 8. Front depth: a dedicated EQ contour independent of the graphic EQ.
+    // 9. Front depth: a dedicated EQ contour independent of the graphic EQ.
     frontFilters.body = context.createBiquadFilter();
     frontFilters.body.type = 'lowshelf';
     frontFilters.body.frequency.value = 220;
@@ -1768,10 +1957,10 @@ async function compileAudioGraph(context, srcNode) {
     frontFilters.presence.connect(frontFilters.air);
     lastOutputNode = frontFilters.air;
 
-    // 9. Limiter
+    // 10. Limiter
     lastOutputNode = await limiter.connect(context, lastOutputNode, () => isBypassed);
 
-    // 10. Stereo pan
+    // 11. Stereo pan
     stereoPannerNode = typeof context.createStereoPanner === 'function' ? context.createStereoPanner() : null;
     if (stereoPannerNode) {
         lastOutputNode.connect(stereoPannerNode);
@@ -1805,6 +1994,7 @@ function bindLiveControlTriggers() {
     reverb.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
     compressor.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
     limiter.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
+    saturation.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
 
     const stemsToggle = document.getElementById('stems-toggle');
     if (stemsToggle) {
@@ -1914,6 +2104,10 @@ compressor.populateTemplates('comp-template-select');
 compressor.updateUI(updateCompressorRangeFills);
 limiter.initVisualizers();
 limiter.updateUI(updateCompressorRangeFills);
+saturation.populatePresets('saturation-preset');
+saturation.syncInputs();
+saturation.initVisualizers();
+saturation.updateUI(updateCompressorRangeFills);
 bindLiveControlTriggers();
 bindSpatialControls();
 reverb.initVisualizers(updateCompressorRangeFills);
@@ -1933,7 +2127,7 @@ if (cfgSeekBar) {
 }
 if (cfgTubeExciter) {
     const saved = localStorage.getItem('jd-cfg-tube-exciter');
-    cfgTubeExciter.checked = saved !== null ? (saved === 'true') : true;
+    cfgTubeExciter.checked = saved !== null ? (saved === 'true') : false;
     cfgTubeExciter.onchange = () => {
         localStorage.setItem('jd-cfg-tube-exciter', String(cfgTubeExciter.checked));
     };
@@ -1953,6 +2147,21 @@ document.getElementById('reset-all-btn').onclick = () => {
     audioState.deesserEnabled = false;
     audioState.saturator = 0;
     audioState.saturatorEnabled = false;
+    audioState.masterSaturation = {
+        enabled: false,
+        drive: 4.6,
+        mix: 61,
+        output: 0,
+        tone: 12,
+        bias: 0,
+        character: 42,
+        evenOdd: 35,
+        dynamics: -10,
+        oversampling: 4,
+        mode: "tube",
+        bandLow: 223,
+        bandHigh: 2350
+    };
     isLooping = false;
     updateLoopButton();
     sectionRepeatEnabled = false;
@@ -1999,6 +2208,9 @@ document.getElementById('reset-all-btn').onclick = () => {
     updateUtilityEffectToggles();
     updateCompressorRangeFills();
     if (audioCtx) applyUtilityEffectSettings(audioCtx);
+    saturation.syncInputs();
+    saturation.updateUI(updateCompressorRangeFills);
+    if (isPlaying && audioCtx) saturation.applySettings(audioCtx, () => isBypassed);
     reverb.syncInputs();
     const reverbPresetSelect = document.getElementById('reverb-preset');
     if (reverbPresetSelect) reverbPresetSelect.value = "default:default_reverb";
@@ -2111,11 +2323,186 @@ function syncStemsUI() {
     }
 }
 
-// Audio upload completion: keep workstation-specific state in the main application.
-function handleDecodedAudio(file, buffer) {
+function getCurrentPlaybackTime() {
+    if (!originalBuffer) return 0;
+    const current = isPlaying && audioCtx ? audioCtx.currentTime - startTime : pausedAt;
+    return Math.max(0, Math.min(originalBuffer.duration, Number(current) || 0));
+}
+
+function stopCurrentAudioSource(keepPosition = true) {
+    const position = keepPosition ? getCurrentPlaybackTime() : 0;
+    if (sourceNode) {
+        try { sourceNode.onended = null; } catch (error) {}
+        try { sourceNode.stop(); } catch (error) {}
+        try { sourceNode.disconnect(); } catch (error) {}
+    }
+    sourceNode = null;
+    isPlaying = false;
+    pausedAt = position;
+    playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+    return position;
+}
+
+function showAudioUploadChoice(file) {
+    if (!audioUploadChoice || !audioUploadReplaceBtn || !audioUploadAppendBtn) {
+        return Promise.resolve('replace');
+    }
+    if (pendingUploadChoiceResolve) {
+        pendingUploadChoiceResolve('replace');
+        pendingUploadChoiceResolve = null;
+    }
+    if (audioUploadChoiceFile) audioUploadChoiceFile.textContent = file?.name || '새 음원';
+    audioUploadChoice.classList.remove('hidden');
+    return new Promise((resolve) => {
+        pendingUploadChoiceResolve = (choice) => {
+            audioUploadChoice.classList.add('hidden');
+            pendingUploadChoiceResolve = null;
+            resolve(choice);
+        };
+        audioUploadReplaceBtn.onclick = () => pendingUploadChoiceResolve?.('replace');
+        audioUploadAppendBtn.onclick = () => pendingUploadChoiceResolve?.('append');
+    });
+}
+
+function createTimelineClip(file, buffer) {
+    const last = audioTimelineClips[audioTimelineClips.length - 1];
+    const start = last ? last.start + last.duration : 0;
+    return {
+        id: `clip-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        file,
+        name: file?.name || 'Audio Clip',
+        buffer,
+        start,
+        duration: buffer.duration
+    };
+}
+
+function rebuildAudioTimelineBuffer() {
+    if (!audioCtx || !audioTimelineClips.length) return null;
+    timelineRebuildInProgress = true;
+    const sampleRate = audioCtx.sampleRate;
+    const channels = Math.max(1, ...audioTimelineClips.map((clip) => clip.buffer.numberOfChannels));
+    let cursor = 0;
+    const normalized = audioTimelineClips.map((clip) => {
+        const start = cursor / sampleRate;
+        const length = clip.buffer.length;
+        cursor += length;
+        return { ...clip, start, duration: length / sampleRate };
+    });
+    audioTimelineClips = normalized;
+    const combined = audioCtx.createBuffer(channels, Math.max(1, cursor), sampleRate);
+    let offset = 0;
+    audioTimelineClips.forEach((clip) => {
+        for (let ch = 0; ch < channels; ch += 1) {
+            const sourceChannel = Math.min(ch, clip.buffer.numberOfChannels - 1);
+            combined.getChannelData(ch).set(clip.buffer.getChannelData(sourceChannel), offset);
+        }
+        offset += clip.buffer.length;
+    });
+    timelineRebuildInProgress = false;
+    return combined;
+}
+
+function renderAudioTimeline() {
+    if (!audioTimelinePanel || !audioTimelineStrip) return;
+    audioTimelinePanel.classList.remove('hidden');
+    if (audioTimelineSummary) {
+        const total = audioTimelineClips.reduce((sum, clip) => sum + clip.duration, 0);
+        audioTimelineSummary.textContent = `${audioTimelineClips.length}개 트랙 · ${formatTime(total)}`;
+    }
+    const trackCount = document.getElementById('audio-timeline-track-count');
+    if (trackCount) trackCount.textContent = `${audioTimelineClips.length}개 트랙`;
+    if (!audioTimelineClips.length) {
+        const empty = document.createElement('div');
+        empty.className = 'audio-timeline-empty';
+        empty.innerHTML = `<i class="fa-solid fa-plus"></i><span>음원을 업로드하면 이곳에 오디오 타임라인이 생성됩니다.</span>`;
+        audioTimelineStrip.replaceChildren(empty);
+        return;
+    }
+    const totalDuration = Math.max(1, audioTimelineClips.reduce((sum, clip) => sum + clip.duration, 0));
+
+    const ruler = document.createElement('div');
+    ruler.className = 'audio-timeline-ruler';
+    const playhead = document.createElement('div');
+    playhead.className = 'audio-timeline-playhead';
+    playhead.id = 'audio-timeline-playhead';
+    playhead.style.left = `${Math.max(0, Math.min(100, (getCurrentPlaybackTime() / totalDuration) * 100))}%`;
+    ruler.appendChild(playhead);
+    audioTimelineClips.forEach((clip, index) => {
+        const block = document.createElement('div');
+        block.className = `audio-timeline-block${index === 0 ? ' is-main' : ''}`;
+        const left = Math.max(0, Math.min(100, (clip.start / totalDuration) * 100));
+        const width = Math.max(3, Math.min(100, (clip.duration / totalDuration) * 100));
+        block.style.left = `${left}%`;
+        block.style.width = `${width}%`;
+        block.title = `${clip.name} · ${formatTime(clip.start)} → ${formatTime(clip.start + clip.duration)}`;
+        const label = document.createElement('span');
+        label.textContent = index === 0 ? '메인' : `${index + 1}`;
+        block.appendChild(label);
+        const waves = document.createElement('div');
+        waves.className = 'audio-timeline-wave-bars';
+        for (let i = 0; i < 72; i += 1) {
+            const bar = document.createElement('i');
+            const phase = (i + 1) * (index + 2) * 0.37;
+            bar.style.height = `${28 + Math.abs(Math.sin(phase)) * 58}%`;
+            waves.appendChild(bar);
+        }
+        block.appendChild(waves);
+        ruler.appendChild(block);
+    });
+
+    const list = document.createElement('div');
+    list.className = 'audio-timeline-clip-list';
+    audioTimelineClips.forEach((clip, index) => {
+        const item = document.createElement('div');
+        item.className = `audio-timeline-clip${index === 0 ? ' is-main' : ''}`;
+        const idx = document.createElement('span');
+        idx.className = 'audio-timeline-clip-index';
+        idx.textContent = index === 0 ? 'M' : String(index + 1);
+        const body = document.createElement('span');
+        body.className = 'min-w-0';
+        const name = document.createElement('span');
+        name.className = 'audio-timeline-clip-name';
+        name.textContent = clip.name;
+        const meta = document.createElement('span');
+        meta.className = 'audio-timeline-clip-meta';
+        meta.textContent = `${formatTime(clip.start)} → ${formatTime(clip.start + clip.duration)}`;
+        body.append(name, meta);
+        const duration = document.createElement('span');
+        duration.className = 'audio-timeline-clip-duration';
+        duration.textContent = formatTime(clip.duration);
+        item.append(idx, body, duration);
+        list.appendChild(item);
+    });
+
+    const addSlot = document.createElement('div');
+    addSlot.className = 'audio-timeline-add-slot';
+    addSlot.innerHTML = `<i class="fa-solid fa-plus"></i><span>추가 음원은 업로드 후<br>“오디오 타임라인에 추가” 선택</span>`;
+    list.appendChild(addSlot);
+    audioTimelineStrip.replaceChildren(ruler, list);
+    updateAudioTimelinePlayhead(getCurrentPlaybackTime());
+}
+
+function updateAudioTimelinePlayhead(current = 0) {
+    const playhead = document.getElementById('audio-timeline-playhead');
+    if (!playhead || !audioTimelineClips.length) return;
+    const total = Math.max(1, audioTimelineClips.reduce((sum, clip) => sum + clip.duration, 0));
+    playhead.style.left = `${Math.max(0, Math.min(100, (current / total) * 100))}%`;
+}
+
+if (audioTimelineHeader && audioTimelineContent) {
+    audioTimelineHeader.onclick = () => {
+        const collapsed = !audioTimelineContent.classList.contains('hidden');
+        audioTimelineContent.classList.toggle('hidden', collapsed);
+        audioTimelineHeader.setAttribute('aria-expanded', String(!collapsed));
+        if (audioTimelineChevron) audioTimelineChevron.className = `fa-solid fa-chevron-${collapsed ? 'down' : 'up'}`;
+    };
+}
+
+function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, resumePlayback = false } = {}) {
     resetLoudnessStats();
-    currentAudioFileBlob = file;
-    currentAudioFileName = file.name;
+    currentAudioFileBlob = audioTimelineClips.length > 1 ? null : file;
+    currentAudioFileName = audioTimelineClips.length > 1 ? `${audioTimelineClips[0].name.replace(/\.[^/.]+$/, '')}_timeline` : file.name;
     updateExportFilenamePreview();
     originalBuffer = buffer;
     sectionRepeatEnabled = false;
@@ -2124,9 +2511,12 @@ function handleDecodedAudio(file, buffer) {
     sectionRepeatEnd = buffer.duration;
     updateSectionRepeatUI(0);
     waveformPeaks = buildWaveformPeaks(buffer);
-    stopWaveformLoading(true, `${file.name} 로드 완료`);
-    updateWaveformProgress(0);
-    trackName.innerText = `로드 완료: ${file.name}`;
+    stopWaveformLoading(true, mode === 'append' ? `${file.name} 타임라인에 추가 완료` : `${file.name} 로드 완료`);
+    const startAt = Math.max(0, Math.min(buffer.duration, resumeAt || 0));
+    updateWaveformProgress(startAt);
+    trackName.innerText = mode === 'append'
+        ? `타임라인 추가 완료: ${file.name}`
+        : `로드 완료: ${file.name}`;
 
     activeStemIds = [];
     const activeCount = Math.floor(Math.random() * 5) + 8;
@@ -2149,7 +2539,7 @@ function handleDecodedAudio(file, buffer) {
     playBtn.classList.remove('opacity-40', 'cursor-not-allowed');
     downloadBtn.classList.remove('opacity-40', 'cursor-not-allowed');
 
-    const enableTubeExciter = document.getElementById('cfg-tube-exciter')?.checked !== false;
+    const enableTubeExciter = document.getElementById('cfg-tube-exciter')?.checked === true;
     audioState.saturatorEnabled = enableTubeExciter;
     audioState.saturator = enableTubeExciter ? 15 : 0;
 
@@ -2162,11 +2552,40 @@ function handleDecodedAudio(file, buffer) {
     updateUtilityEffectToggles();
     updateCompressorRangeFills();
 
-    pausedAt = 0;
+    pausedAt = startAt;
     isPlaying = false;
-    setProgressBarValue(0);
-    updateWaveformProgress(0);
+    setProgressBarValue(buffer.duration ? (startAt / buffer.duration) * 100 : 0);
+    updateWaveformProgress(startAt);
     playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+    renderAudioTimeline();
+    if (resumePlayback) void startPlaybackAt(startAt);
+}
+
+// Audio upload completion: keep workstation-specific state in the main application.
+async function handleDecodedAudio(file, buffer) {
+    const hasExistingAudio = Boolean(originalBuffer);
+    let mode = 'replace';
+    if (hasExistingAudio) {
+        mode = await showAudioUploadChoice(file);
+    }
+
+    const resumeAt = getCurrentPlaybackTime();
+    const resumePlayback = mode === 'append' && isPlaying;
+    stopCurrentAudioSource(mode === 'append');
+
+    if (mode === 'append') {
+        if (!audioTimelineClips.length && originalBuffer) {
+            const existingFile = currentAudioFileBlob || { name: currentAudioFileName || 'Current Audio' };
+            audioTimelineClips = [createTimelineClip(existingFile, originalBuffer)];
+        }
+        audioTimelineClips.push(createTimelineClip(file, buffer));
+        const combined = rebuildAudioTimelineBuffer();
+        applyDecodedAudioState(file, combined || buffer, { mode, resumeAt, resumePlayback });
+        return;
+    }
+
+    audioTimelineClips = [createTimelineClip(file, buffer)];
+    applyDecodedAudioState(file, buffer, { mode: 'replace', resumeAt: 0, resumePlayback: false });
 }
 
 progressBar.onmousedown = () => { isUserSeeking = true; };
@@ -2373,6 +2792,7 @@ function executeBypassRouting(mode) {
         btnB.className = "";
         if (isPlaying) {
             eq.applySettings(audioCtx, isBypassed);
+            saturation.applySettings(audioCtx, () => isBypassed);
             Object.values(stemFilters).forEach(f => f.gain.setValueAtTime(0, audioCtx.currentTime));
             applyUtilityEffectSettings(audioCtx);
             reverb.applySettings(audioCtx, () => isBypassed);
@@ -2386,6 +2806,7 @@ function executeBypassRouting(mode) {
         btnB.className = "is-active";
         if (isPlaying) {
             eq.applySettings(audioCtx, isBypassed);
+            saturation.applySettings(audioCtx, () => isBypassed);
             const stemsDisabled = isBypassed || !audioState.stemsEnabled;
             stemRegistry.forEach(stem => {
                 if (activeStemIds.includes(stem.id) && stemFilters[stem.id]) {
@@ -2862,7 +3283,7 @@ async function getProject(id) {
     });
 }
 
-const effectorRegistry = { eq, reverb, compressor, limiter };
+const effectorRegistry = { eq, saturation, reverb, compressor, limiter };
 
 function serializeEffectorSettings() {
     const effectorSettings = {};
@@ -2906,7 +3327,11 @@ function applyAllLoadedSettings() {
     }
     limiter.updateUI(updateCompressorRangeFills);
 
-    // 5. Sync post-eq utility effects values
+    // 5. Sync Saturation UI
+    saturation.syncInputs();
+    saturation.updateUI(updateCompressorRangeFills);
+
+    // 6. Sync post-eq utility effects values
     const noiseInput = document.getElementById('noise-reducer');
     if (noiseInput) {
         noiseInput.value = audioState.noise;
@@ -2938,15 +3363,16 @@ function applyAllLoadedSettings() {
     updateUtilityEffectToggles();
     updateStemsToggleUI();
 
-    // 6. Sync Stems
+    // 7. Sync Stems
     syncStemsUI();
 
-    // 7. Update compressor/reverb/limiter range fills
+    // 8. Update compressor/reverb/limiter/saturation range fills
     updateCompressorRangeFills();
 
-    // 8. If AudioContext is playing, apply settings live
+    // 9. If AudioContext is playing, apply settings live
     if (isPlaying && audioCtx) {
         eq.applySettings(audioCtx, isBypassed);
+        saturation.applySettings(audioCtx, () => isBypassed);
         
         const stemsDisabled = isBypassed || !audioState.stemsEnabled;
         stemRegistry.forEach(stem => {
@@ -3023,12 +3449,7 @@ if (dbLoadSelect) {
             if (!project) return;
 
             // Stop playback if playing
-            if (isPlaying && sourceNode) {
-                try { sourceNode.stop(); } catch(err){}
-                isPlaying = false;
-                pausedAt = 0;
-                playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
-            }
+            stopCurrentAudioSource(false);
 
             // Restore activeStemIds
             activeStemIds = project.activeStemIds || [];
@@ -3062,6 +3483,8 @@ if (dbLoadSelect) {
                     audioCtx.decodeAudioData(evt.target.result, function(buffer) {
                         resetLoudnessStats();
                         originalBuffer = buffer;
+                        audioTimelineClips = [createTimelineClip({ name: currentAudioFileName }, buffer)];
+                        renderAudioTimeline();
                         sectionRepeatEnabled = false;
                         sectionRepeatInitialized = false;
                         sectionRepeatStart = 0;
@@ -3095,6 +3518,8 @@ if (dbLoadSelect) {
                 currentAudioFileBlob = null;
                 currentAudioFileName = "";
                 originalBuffer = null;
+                audioTimelineClips = [];
+                renderAudioTimeline();
                 sectionRepeatEnabled = false;
                 sectionRepeatInitialized = false;
                 sectionRepeatStart = 0;
