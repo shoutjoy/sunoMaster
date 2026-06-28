@@ -637,18 +637,16 @@ function setupMasterEffectPanels() {
         const advancedContent = panelId === 'master-limiter-panel'
             ? content.querySelector('.limiter-advanced-content')
             : null;
-        const collapseTarget = advancedContent || content;
+        const collapseTarget = content;
         const startsCollapsed = collapseTarget.classList.contains('is-collapsed');
         collapse.setAttribute('aria-expanded', String(!startsCollapsed));
-        collapse.setAttribute('aria-label', advancedContent ? '리미터 고급 분석 펼치기' : '패널 접기');
+        collapse.setAttribute('aria-label', startsCollapsed ? '패널 펼치기' : '패널 접기');
         collapse.innerHTML = `<i class="fa-solid fa-chevron-${startsCollapsed ? 'down' : 'up'}"></i>`;
         collapse.onclick = () => {
             const collapsed = !collapseTarget.classList.contains('is-collapsed');
             collapseTarget.classList.toggle('is-collapsed', collapsed);
             collapse.setAttribute('aria-expanded', String(!collapsed));
-            collapse.setAttribute('aria-label', advancedContent
-                ? (collapsed ? '리미터 고급 분석 펼치기' : '리미터 고급 분석 접기')
-                : (collapsed ? '패널 펼치기' : '패널 접기'));
+            collapse.setAttribute('aria-label', collapsed ? '패널 펼치기' : '패널 접기');
             collapse.innerHTML = `<i class="fa-solid fa-chevron-${collapsed ? 'down' : 'up'}"></i>`;
             if (!collapsed) {
                 window.setTimeout(() => {
@@ -756,6 +754,7 @@ function setAllPanelsCollapsed(collapsed) {
 
 collapseAllBtn?.addEventListener('click', () => setAllPanelsCollapsed(true));
 expandAllBtn?.addEventListener('click', () => setAllPanelsCollapsed(false));
+setAllPanelsCollapsed(true);
 
 function setupPlayerSignalLevel() {
     const signalPanel = document.getElementById('signal-output-panel');

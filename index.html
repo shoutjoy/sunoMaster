@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260628-43">
+    <link rel="stylesheet" href="index.css?v=20260629-1">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-14">
 </head>
 
@@ -290,9 +290,9 @@
                 <section id="master-loudness-panel" class="loudness-panel">
                     <div class="loudness-panel-header">
                         <h3><i class="fa-solid fa-chart-column"></i> MASTER LOUDNESS METER</h3>
-                        <button id="loudness-collapse-btn" type="button" aria-expanded="true" aria-controls="loudness-panel-content" title="접기/펼치기"><i class="fa-solid fa-chevron-up"></i></button>
+                        <button id="loudness-collapse-btn" type="button" aria-expanded="false" aria-controls="loudness-panel-content" title="접기/펼치기"><i class="fa-solid fa-chevron-down"></i></button>
                     </div>
-                    <div id="loudness-panel-content" class="loudness-panel-content">
+                    <div id="loudness-panel-content" class="loudness-panel-content is-collapsed">
                         <div class="loudness-primary-grid">
                             <div class="loudness-metric-row"><span>Momentary<small>400ms</small></span><strong id="loudness-momentary">--</strong><em>LUFS</em><div class="loudness-level-meter meter-momentary has-target" role="progressbar" aria-label="Momentary loudness level" aria-valuemin="-60" aria-valuemax="0"><div id="loudness-momentary-bar" class="loudness-level-fill"></div></div></div>
                             <div class="loudness-metric-row"><span>Short-term<small>3.0s</small></span><strong id="loudness-short">--</strong><em>LUFS</em><div class="loudness-level-meter meter-short has-target" role="progressbar" aria-label="Short-term loudness level" aria-valuemin="-60" aria-valuemax="0"><div id="loudness-short-bar" class="loudness-level-fill"></div></div></div>
@@ -723,10 +723,10 @@
                                     <option value="default">Default</option>
                                 </select>
                                 <button id="spread-toggle" type="button" aria-pressed="false">OUT</button>
-                                <button id="spread-collapse-btn" type="button" aria-expanded="true" aria-controls="spread-collapse-content" title="접기/펼치기"><i id="spread-collapse-icon" class="fa-solid fa-chevron-up"></i></button>
+                                <button id="spread-collapse-btn" type="button" aria-expanded="false" aria-controls="spread-collapse-content" title="접기/펼치기"><i id="spread-collapse-icon" class="fa-solid fa-chevron-down"></i></button>
                             </div>
                         </div>
-                        <div id="spread-collapse-content" class="spread-content">
+                        <div id="spread-collapse-content" class="spread-content is-collapsed">
                             <div class="spread-stage" aria-label="Spread stereo field visualizer">
                                 <span class="spread-speaker spread-speaker-left">L</span>
                                 <span class="spread-speaker spread-speaker-right">R</span>
@@ -930,12 +930,12 @@
                             <button id="eq-preset-delete" type="button" class="eq-preset-action is-danger" disabled>DEL</button>
                             <button id="eq-toggle" type="button" aria-pressed="false" class="eq-toggle">OUT</button>
                             <button id="eq-collapse-btn" type="button" class="eq-collapse-btn" title="EQ 접기/펼치기"
-                                aria-controls="eq-collapse-content" aria-expanded="true">
-                                <i id="eq-collapse-icon" class="fa-solid fa-chevron-up"></i>
+                                aria-controls="eq-collapse-content" aria-expanded="false">
+                                <i id="eq-collapse-icon" class="fa-solid fa-chevron-down"></i>
                             </button>
                         </div>
                     </header>
-                    <div id="eq-collapse-content" class="eq-collapse-content">
+                    <div id="eq-collapse-content" class="eq-collapse-content hidden">
                         <div id="eq-response-shell" class="eq-response-shell">
                             <canvas id="eq-response-canvas" tabindex="0"
                                 aria-label="20밴드 EQ 응답 그래프. 포인트를 위아래로 드래그하여 게인을 조절합니다."></canvas>
@@ -971,12 +971,12 @@
                             </select>
                             <button id="saturation-collapse-btn" type="button" class="saturation-collapse-btn"
                                 title="Saturation 접기/펼치기" aria-controls="saturation-collapse-content"
-                                aria-expanded="true">
-                                <i id="saturation-collapse-icon" class="fa-solid fa-chevron-up"></i>
+                                aria-expanded="false">
+                                <i id="saturation-collapse-icon" class="fa-solid fa-chevron-down"></i>
                             </button>
                         </div>
                     </header>
-                    <div id="saturation-collapse-content" class="saturation-collapse-content">
+                    <div id="saturation-collapse-content" class="saturation-collapse-content is-collapsed">
                         <div class="saturation-main-grid">
                             <article class="saturation-card saturation-harmonics-card">
                                 <div class="saturation-card-title">
@@ -1085,13 +1085,13 @@
 
                 <div id="audio-timeline-panel" class="audio-timeline-panel">
                     <button id="audio-timeline-header" type="button" class="audio-timeline-header"
-                        aria-expanded="true" aria-controls="audio-timeline-content">
+                        aria-expanded="false" aria-controls="audio-timeline-content">
                         <span><i class="fa-solid fa-music"></i> 오디오 타임라인</span>
                         <span class="audio-timeline-hint">각 슬라이드 = 한 곡의 마스터링 세팅</span>
                         <span id="audio-timeline-summary">0 clips</span>
-                        <i id="audio-timeline-chevron" class="fa-solid fa-chevron-up"></i>
+                        <i id="audio-timeline-chevron" class="fa-solid fa-chevron-down"></i>
                     </button>
-                    <div id="audio-timeline-content" class="audio-timeline-content">
+                    <div id="audio-timeline-content" class="audio-timeline-content hidden">
                         <div class="audio-timeline-help">
                             <span>순차 재생 · 각 곡은 볼륨/Fade/마스터링 세팅을 개별 저장합니다.</span>
                             <span id="audio-timeline-track-count">0개 트랙</span>
@@ -1132,7 +1132,7 @@
     <script src="effector/Saturation/saturation.js?v=20260628-5"></script>
     <script src="effector/spreaddp/spread.js?v=20260629-1"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260628-8"></script>
-    <script src="index.js?v=20260628-51"></script>
+    <script src="index.js?v=20260629-1"></script>
 </body>
 
 </html>
