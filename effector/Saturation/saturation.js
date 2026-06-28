@@ -3,7 +3,7 @@ class SaturationEffector {
         this.audioState = audioState;
         this.defaultSettings = {
             enabled: false,
-            drive: 4.6,
+            drive: 2.3,
             mix: 61,
             output: 0,
             tone: 12,
@@ -18,11 +18,11 @@ class SaturationEffector {
         };
         this.presets = {
             default: { label: "Default", settings: this.defaultSettings },
-            warmTube: { label: "Warm Tube", settings: { enabled: true, drive: 3.2, mix: 42, output: -0.3, tone: -8, bias: 4, character: 55, evenOdd: 26, dynamics: -8, oversampling: 4, mode: "tube" } },
-            tapeGlue: { label: "Tape Glue", settings: { enabled: true, drive: 2.4, mix: 36, output: -0.4, tone: -14, bias: 0, character: 68, evenOdd: 18, dynamics: -12, oversampling: 4, mode: "tape" } },
-            transformer: { label: "Transformer", settings: { enabled: true, drive: 2.8, mix: 32, output: -0.2, tone: 4, bias: 7, character: 75, evenOdd: 22, dynamics: -6, oversampling: 2, mode: "transformer" } },
-            cleanClip: { label: "Clean Soft Clip", settings: { enabled: true, drive: 1.6, mix: 28, output: -0.6, tone: 0, bias: 0, character: 20, evenOdd: 8, dynamics: -4, oversampling: 4, mode: "clean" } },
-            airPolish: { label: "Air Polish", settings: { enabled: true, drive: 1.8, mix: 24, output: -0.2, tone: 18, bias: 0, character: 32, evenOdd: 15, dynamics: -5, oversampling: 4, mode: "tube" } }
+            warmTube: { label: "Warm Tube", settings: { enabled: true, drive: 1.6, mix: 42, output: -0.3, tone: -8, bias: 4, character: 55, evenOdd: 26, dynamics: -8, oversampling: 4, mode: "tube" } },
+            tapeGlue: { label: "Tape Glue", settings: { enabled: true, drive: 1.2, mix: 36, output: -0.4, tone: -14, bias: 0, character: 68, evenOdd: 18, dynamics: -12, oversampling: 4, mode: "tape" } },
+            transformer: { label: "Transformer", settings: { enabled: true, drive: 1.4, mix: 32, output: -0.2, tone: 4, bias: 7, character: 75, evenOdd: 22, dynamics: -6, oversampling: 2, mode: "transformer" } },
+            cleanClip: { label: "Clean Soft Clip", settings: { enabled: true, drive: 0.8, mix: 28, output: -0.6, tone: 0, bias: 0, character: 20, evenOdd: 8, dynamics: -4, oversampling: 4, mode: "clean" } },
+            airPolish: { label: "Air Polish", settings: { enabled: true, drive: 0.9, mix: 24, output: -0.2, tone: 18, bias: 0, character: 32, evenOdd: 15, dynamics: -5, oversampling: 4, mode: "tube" } }
         };
         this.nodes = null;
         this.visualFrame = 0;

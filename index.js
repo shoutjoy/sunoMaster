@@ -351,7 +351,7 @@ const audioState = {
     saturatorEnabled: false,
     masterSaturation: {
         enabled: false,
-        drive: 4.6,
+        drive: 2.3,
         mix: 61,
         output: 0,
         tone: 12,
@@ -363,6 +363,13 @@ const audioState = {
         mode: "tube",
         bandLow: 223,
         bandHigh: 2350
+    },
+    spread: {
+        enabled: false,
+        spread: 45,
+        centerDb: 0,
+        sideDb: -9,
+        lowCutHz: 160
     },
     reverb: {
         enabled: false,
@@ -405,6 +412,7 @@ const reverb = new ReverbEffector(audioState);
 const compressor = new CompressorEffector(audioState);
 const limiter = new LimiterEffector(audioState);
 const saturation = new SaturationEffector(audioState);
+const spread = new SpreadEffector(audioState);
 
 let audioCtx = null;
 let originalBuffer = null;
@@ -718,6 +726,15 @@ function setAllPanelsCollapsed(collapsed) {
             hiddenClass: 'is-collapsed',
             button: document.getElementById('saturation-collapse-btn'),
             icon: document.getElementById('saturation-collapse-icon')
+        }
+    );
+    setPanelCollapsed(
+        document.getElementById('spread-collapse-content'),
+        collapsed,
+        {
+            hiddenClass: 'is-collapsed',
+            button: document.getElementById('spread-collapse-btn'),
+            icon: document.getElementById('spread-collapse-icon')
         }
     );
     document.querySelectorAll('.main-effect-panel .effect-panel-content').forEach((content) => {
@@ -1903,7 +1920,10 @@ async function compileAudioGraph(context, srcNode) {
     // 2. Master saturation
     lastOutputNode = saturation.connect(context, lastOutputNode, () => isBypassed);
 
-    // 3. 20 Channel smart stems
+    // 3. Stereo spread
+    lastOutputNode = spread.connect(context, lastOutputNode, () => isBypassed);
+
+    // 4. 20 Channel smart stems
     stemFilters = {};
     const stemsDisabled = isBypassed || !audioState.stemsEnabled;
     stemRegistry.forEach((stem) => {
@@ -1920,7 +1940,7 @@ async function compileAudioGraph(context, srcNode) {
         }
     });
 
-    // 4. Noise reduction
+    // 5. Noise reduction
     noiseFilters.lowCut = context.createBiquadFilter();
     noiseFilters.lowCut.type = 'highpass';
     noiseFilters.highCut = context.createBiquadFilter();
@@ -1934,7 +1954,7 @@ async function compileAudioGraph(context, srcNode) {
     noiseFilters.lowCut.connect(noiseFilters.highCut);
     lastOutputNode = noiseFilters.highCut;
 
-    // 5. De-Esser
+    // 6. De-Esser
     noiseFilters.deEsser = context.createBiquadFilter();
     noiseFilters.deEsser.type = 'peaking';
     noiseFilters.deEsser.frequency.value = 6500; 
@@ -1944,7 +1964,7 @@ async function compileAudioGraph(context, srcNode) {
     lastOutputNode.connect(noiseFilters.deEsser);
     lastOutputNode = noiseFilters.deEsser;
 
-    // 6. Tubes Harmonics Exciter
+    // 7. Tubes Harmonics Exciter
     noiseFilters.waveShaper = context.createWaveShaper();
     noiseFilters.waveShaper.curve = makeExciterCurve((!isBypassed && audioState.saturatorEnabled) ? audioState.saturator : 0);
     noiseFilters.waveShaper.oversample = '4x'; 
@@ -1952,13 +1972,13 @@ async function compileAudioGraph(context, srcNode) {
     lastOutputNode.connect(noiseFilters.waveShaper);
     lastOutputNode = noiseFilters.waveShaper;
 
-    // 7. Reverb
+    // 8. Reverb
     lastOutputNode = reverb.connect(context, lastOutputNode, () => isBypassed);
 
-    // 8. Compressor
+    // 9. Compressor
     lastOutputNode = compressor.connect(context, lastOutputNode, () => isBypassed);
 
-    // 9. Front depth: a dedicated EQ contour independent of the graphic EQ.
+    // 10. Front depth: a dedicated EQ contour independent of the graphic EQ.
     frontFilters.body = context.createBiquadFilter();
     frontFilters.body.type = 'lowshelf';
     frontFilters.body.frequency.value = 220;
@@ -1974,10 +1994,10 @@ async function compileAudioGraph(context, srcNode) {
     frontFilters.presence.connect(frontFilters.air);
     lastOutputNode = frontFilters.air;
 
-    // 10. Limiter
+    // 11. Limiter
     lastOutputNode = await limiter.connect(context, lastOutputNode, () => isBypassed);
 
-    // 11. Stereo pan
+    // 12. Stereo pan
     stereoPannerNode = typeof context.createStereoPanner === 'function' ? context.createStereoPanner() : null;
     if (stereoPannerNode) {
         lastOutputNode.connect(stereoPannerNode);
@@ -1985,7 +2005,7 @@ async function compileAudioGraph(context, srcNode) {
     }
     applySpatialSettings(context);
 
-    // 11. Master volume out gain
+    // 13. Master volume out gain
     masterGainNode = context.createGain();
     masterGainNode.gain.value = isBypassed ? 1.0 : (audioState.master / 100);
 
@@ -2012,6 +2032,7 @@ function bindLiveControlTriggers() {
     compressor.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
     limiter.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
     saturation.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
+    spread.bindLiveControls(audioCtx, getPlayState, getBypassState, updateCompressorRangeFills);
 
     const stemsToggle = document.getElementById('stems-toggle');
     if (stemsToggle) {
@@ -2140,6 +2161,9 @@ saturation.populatePresets('saturation-preset');
 saturation.syncInputs();
 saturation.initVisualizers();
 saturation.updateUI(updateCompressorRangeFills);
+spread.populatePresets('spread-preset');
+spread.syncInputs();
+spread.updateUI(updateCompressorRangeFills);
 bindLiveControlTriggers();
 bindSpatialControls();
 reverb.initVisualizers(updateCompressorRangeFills);
@@ -2182,7 +2206,7 @@ document.getElementById('reset-all-btn').onclick = () => {
     audioState.saturatorEnabled = false;
     audioState.masterSaturation = {
         enabled: false,
-        drive: 4.6,
+        drive: 2.3,
         mix: 61,
         output: 0,
         tone: 12,
@@ -2194,6 +2218,13 @@ document.getElementById('reset-all-btn').onclick = () => {
         mode: "tube",
         bandLow: 223,
         bandHigh: 2350
+    };
+    audioState.spread = {
+        enabled: false,
+        spread: 45,
+        centerDb: 0,
+        sideDb: -9,
+        lowCutHz: 160
     };
     isLooping = false;
     updateLoopButton();
@@ -2244,6 +2275,11 @@ document.getElementById('reset-all-btn').onclick = () => {
     saturation.syncInputs();
     saturation.updateUI(updateCompressorRangeFills);
     if (isPlaying && audioCtx) saturation.applySettings(audioCtx, () => isBypassed);
+    spread.syncInputs();
+    const spreadPresetSelect = document.getElementById('spread-preset');
+    if (spreadPresetSelect) spreadPresetSelect.value = "default";
+    spread.updateUI(updateCompressorRangeFills);
+    if (isPlaying && audioCtx) spread.applySettings(audioCtx, () => isBypassed);
     reverb.syncInputs();
     const reverbPresetSelect = document.getElementById('reverb-preset');
     if (reverbPresetSelect) reverbPresetSelect.value = "default:default_reverb";
@@ -3099,10 +3135,8 @@ setInterval(() => {
 const btnA = document.getElementById('bypass-a');
 const btnB = document.getElementById('bypass-b');
 function enableMasterProcessors() {
-    audioState.reverb.enabled = true;
     audioState.compressor.enabled = true;
     audioState.limiter.enabled = true;
-    reverb.updateUI(updateCompressorRangeFills);
     compressor.updateUI(updateCompressorRangeFills);
     limiter.updateUI(updateCompressorRangeFills);
 }
@@ -3115,6 +3149,7 @@ function executeBypassRouting(mode) {
         if (isPlaying) {
             eq.applySettings(audioCtx, isBypassed);
             saturation.applySettings(audioCtx, () => isBypassed);
+            spread.applySettings(audioCtx, () => isBypassed);
             Object.values(stemFilters).forEach(f => f.gain.setValueAtTime(0, audioCtx.currentTime));
             applyUtilityEffectSettings(audioCtx);
             reverb.applySettings(audioCtx, () => isBypassed);
@@ -3129,6 +3164,7 @@ function executeBypassRouting(mode) {
         if (isPlaying) {
             eq.applySettings(audioCtx, isBypassed);
             saturation.applySettings(audioCtx, () => isBypassed);
+            spread.applySettings(audioCtx, () => isBypassed);
             const stemsDisabled = isBypassed || !audioState.stemsEnabled;
             stemRegistry.forEach(stem => {
                 if (activeStemIds.includes(stem.id) && stemFilters[stem.id]) {
@@ -3606,7 +3642,7 @@ async function getProject(id) {
     });
 }
 
-const effectorRegistry = { eq, saturation, reverb, compressor, limiter };
+const effectorRegistry = { eq, saturation, spread, reverb, compressor, limiter };
 
 function serializeEffectorSettings() {
     const effectorSettings = {};
@@ -3790,7 +3826,13 @@ function applyAllLoadedSettings() {
     saturation.syncInputs();
     saturation.updateUI(updateCompressorRangeFills);
 
-    // 6. Sync post-eq utility effects values
+    // 6. Sync Spread UI
+    spread.syncInputs();
+    const spreadPresetSelect = document.getElementById('spread-preset');
+    if (spreadPresetSelect) spreadPresetSelect.value = "";
+    spread.updateUI(updateCompressorRangeFills);
+
+    // 7. Sync post-eq utility effects values
     const noiseInput = document.getElementById('noise-reducer');
     if (noiseInput) {
         noiseInput.value = audioState.noise;
@@ -3832,6 +3874,7 @@ function applyAllLoadedSettings() {
     if (isPlaying && audioCtx) {
         eq.applySettings(audioCtx, isBypassed);
         saturation.applySettings(audioCtx, () => isBypassed);
+        spread.applySettings(audioCtx, () => isBypassed);
         
         const stemsDisabled = isBypassed || !audioState.stemsEnabled;
         stemRegistry.forEach(stem => {
