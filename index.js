@@ -1,6 +1,5 @@
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
-const themeLabel = document.getElementById('theme-label');
 const downloadBtn = document.getElementById('download-btn');
 const collapseAllBtn = document.getElementById('collapse-all-btn');
 const expandAllBtn = document.getElementById('expand-all-btn');
@@ -10,7 +9,11 @@ function applyTheme(theme) {
     document.body.classList.toggle('light-mode', isLight);
     if (themeToggle) themeToggle.setAttribute('aria-pressed', String(isLight));
     if (themeIcon) themeIcon.className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-    if (themeLabel) themeLabel.innerText = isLight ? 'Dark' : 'Light';
+    if (themeToggle) {
+        const nextLabel = isLight ? '다크 모드로 전환' : '라이트 모드로 전환';
+        themeToggle.setAttribute('aria-label', nextLabel);
+        themeToggle.setAttribute('title', nextLabel);
+    }
 }
 
 function getStoredTheme() {
@@ -1089,8 +1092,8 @@ function drawLoudnessHistory() {
         });
         context.stroke();
     };
-    drawLine('momentary', '#eab308');
-    drawLine('shortTerm', '#f59e0b');
+    drawLine('momentary', '#f97316');
+    drawLine('shortTerm', '#22c55e');
     drawLine('integrated', '#38bdf8');
 }
 

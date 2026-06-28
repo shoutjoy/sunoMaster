@@ -43,16 +43,19 @@
                         <i class="fa-solid fa-angles-down"></i>
                     </button>
                     <button id="theme-toggle" type="button" aria-pressed="false"
-                        class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
-                        <i id="theme-icon" class="fa-solid fa-sun"></i> <span id="theme-label">Light</span>
+                        class="global-icon-btn bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-semibold transition flex items-center justify-center"
+                        title="라이트 모드로 전환" aria-label="라이트 모드로 전환">
+                        <i id="theme-icon" class="fa-solid fa-sun"></i>
                     </button>
-                    <button id="reset-all-btn"
-                        class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
-                        <i class="fa-solid fa-rotate-left"></i> 콘솔 초기화
+                    <button id="reset-all-btn" type="button"
+                        class="global-icon-btn bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-semibold transition flex items-center justify-center"
+                        title="콘솔 초기화" aria-label="콘솔 초기화">
+                        <i class="fa-solid fa-rotate-left"></i>
                     </button>
                     <label for="audio-upload"
-                        class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-semibold text-center text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
-                        <i class="fa-solid fa-upload"></i> 음원 업로드
+                        class="global-icon-btn cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-semibold text-center text-xs rounded-xl transition flex items-center justify-center shadow-lg"
+                        title="음원 업로드" aria-label="음원 업로드">
+                        <i class="fa-solid fa-upload"></i>
                     </label>
                     <button id="download-btn"
                         class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_22px_rgba(16,185,129,0.55)] hover:shadow-[0_0_30px_rgba(52,211,153,0.72)] disabled:opacity-55 disabled:cursor-not-allowed"
@@ -609,24 +612,48 @@
                                     <span class="text-lime-400">THRESHOLD</span><span id="limiter-threshold-val"
                                         class="text-lime-400 font-mono">-1.0 dB</span>
                                 </div>
-                                <input type="range" id="limiter-threshold" min="-20" max="0" value="-1" step="0.1"
-                                    class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                        class="limiter-step-btn text-lime-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="limiter-threshold" data-dir="-1" aria-label="Threshold 감소">-</button>
+                                    <input type="range" id="limiter-threshold" min="-20" max="0" value="-1" step="0.1"
+                                        class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                    <button type="button"
+                                        class="limiter-step-btn text-lime-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="limiter-threshold" data-dir="1" aria-label="Threshold 증가">+</button>
+                                </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
                                     <span class="text-lime-400">RELEASE</span><span id="limiter-release-val"
                                         class="text-lime-400 font-mono">100 ms</span>
                                 </div>
-                                <input type="range" id="limiter-release" min="10" max="1000" value="100" step="1"
-                                    class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                        class="limiter-step-btn text-lime-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="limiter-release" data-dir="-1" aria-label="Release 감소">-</button>
+                                    <input type="range" id="limiter-release" min="10" max="1000" value="100" step="1"
+                                        class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                    <button type="button"
+                                        class="limiter-step-btn text-lime-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="limiter-release" data-dir="1" aria-label="Release 증가">+</button>
+                                </div>
                             </div>
                             <div class="space-y-1">
                                 <div class="flex justify-between text-[10px] font-bold">
                                     <span class="text-lime-400">OUTPUT</span><span id="limiter-output-val"
                                         class="text-lime-400 font-mono">0.0 dB</span>
                                 </div>
-                                <input type="range" id="limiter-output" min="-12" max="6" value="0" step="0.1"
-                                    class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                        class="limiter-step-btn text-lime-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="limiter-output" data-dir="-1" aria-label="Output 감소">-</button>
+                                    <input type="range" id="limiter-output" min="-12" max="6" value="0" step="0.1"
+                                        class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
+                                    <button type="button"
+                                        class="limiter-step-btn text-lime-400 text-xs font-bold w-5 h-5 rounded bg-gray-900 border border-gray-800"
+                                        data-target="limiter-output" data-dir="1" aria-label="Output 증가">+</button>
+                                </div>
                             </div>
                         </div>
                         <div class="limiter-advanced-content is-collapsed" aria-label="리미터 고급 분석">

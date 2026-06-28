@@ -487,6 +487,21 @@ registerProcessor("lookahead-limiter", LookaheadLimiterProcessor);
                 if (getPlayStateCallback()) this.applySettings(context, getBypassStateCallback);
             };
         });
+
+        document.querySelectorAll('.limiter-step-btn').forEach((button) => {
+            button.onclick = () => {
+                const input = document.getElementById(button.dataset.target);
+                if (!input) return;
+                const direction = Number(button.dataset.dir) || 0;
+                const step = Number(input.step) || 1;
+                const min = Number(input.min);
+                const max = Number(input.max);
+                const current = Number(input.value) || 0;
+                const next = Math.max(min, Math.min(max, current + (step * direction)));
+                input.value = String(Number(next.toFixed(4)));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+        });
     }
 
     getSettings() {
