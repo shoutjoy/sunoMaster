@@ -68,7 +68,7 @@ const AI_MICRO_PRESET_SCALE_STORAGE_KEY = 'jd-ai-micro-preset-scale';
 const SPECTRUM_BAND_COUNT_STORAGE_KEY = 'jd-spectrum-band-count';
 const SPECTRUM_VIEW_MODE_STORAGE_KEY = 'jd-spectrum-view-mode';
 const DEFAULT_EXPORT_PREFIX = 'mastered_';
-const DEFAULT_SPECTRUM_BAND_COUNT = 20;
+const DEFAULT_SPECTRUM_BAND_COUNT = 64;
 const DEFAULT_AI_MICRO_PRESET_SCALE = 0.3;
 let spectrumBandCount = DEFAULT_SPECTRUM_BAND_COUNT;
 let spectrumViewMode = 'bars';
@@ -272,7 +272,8 @@ function applySpectrumViewMode(mode, persist = true) {
 let storedSpectrumBandCount = DEFAULT_SPECTRUM_BAND_COUNT;
 let storedSpectrumViewMode = 'bars';
 try {
-    storedSpectrumBandCount = localStorage.getItem(SPECTRUM_BAND_COUNT_STORAGE_KEY) || DEFAULT_SPECTRUM_BAND_COUNT;
+    const rawSpectrumBandCount = localStorage.getItem(SPECTRUM_BAND_COUNT_STORAGE_KEY);
+    storedSpectrumBandCount = (!rawSpectrumBandCount || rawSpectrumBandCount === '20') ? DEFAULT_SPECTRUM_BAND_COUNT : rawSpectrumBandCount;
     storedSpectrumViewMode = localStorage.getItem(SPECTRUM_VIEW_MODE_STORAGE_KEY) || 'bars';
 } catch (error) {}
 applySpectrumBandCount(storedSpectrumBandCount, false);
@@ -2108,6 +2109,21 @@ function bindLiveControlTriggers() {
             masterGainNode.gain.setValueAtTime(val / 100, audioCtx.currentTime);
         }
     };
+
+    document.querySelectorAll('.transport-step-btn').forEach((button) => {
+        button.onclick = () => {
+            const input = document.getElementById(button.dataset.target);
+            if (!input) return;
+            const direction = Number(button.dataset.dir) || 0;
+            const step = Number(input.step) || 1;
+            const min = Number(input.min);
+            const max = Number(input.max);
+            const current = Number(input.value) || 0;
+            const next = Math.max(min, Math.min(max, current + (step * direction)));
+            input.value = String(Number(next.toFixed(4)));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+    });
 }
 
 reverb.populatePresets('reverb-preset');
@@ -2151,6 +2167,7 @@ if (cfgTubeExciter) {
 
 // Master Reset console
 document.getElementById('reset-all-btn').onclick = () => {
+    if (!window.confirm('현재 프로젝트를 진짜 초기화할까요?')) return;
     executeBypassRouting(true);
     resetLoudnessStats();
     audioState.eq = new Array(20).fill(0);
