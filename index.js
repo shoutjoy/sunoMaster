@@ -1081,7 +1081,7 @@ function drawLoudnessHistory() {
     if (loudnessHistory.height !== height) loudnessHistory.height = height;
     const context = loudnessHistory.getContext('2d');
     context.clearRect(0, 0, width, height);
-    context.fillStyle = document.body.classList.contains('light-mode') ? '#f8fafc' : '#070c16';
+    context.fillStyle = '#070c16';
     context.fillRect(0, 0, width, height);
     const pad = 22 * dpr;
     const minDb = -48;
@@ -3380,7 +3380,7 @@ function drawSpectrumFrequencyLabels(bands) {
     const plot = getSpectrumPlotRect();
     const labelStep = Math.max(1, Math.ceil(bands.length / 10));
     ctx.save();
-    ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1e293b' : '#64748b';
+    ctx.fillStyle = '#64748b';
     ctx.font = '8px ui-monospace, monospace';
     ctx.textAlign = 'center';
     bands.forEach((band, index) => {
