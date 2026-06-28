@@ -204,7 +204,7 @@ class EQEffector {
     clampGain(value) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return 0;
-        return Math.max(this.minGain, Math.min(this.maxGain, Math.round(numeric * 10) / 10));
+        return Math.max(this.minGain, Math.min(this.maxGain, Math.round(numeric * 100) / 100));
     }
 
     renderUI(containerId) {
@@ -226,7 +226,7 @@ class EQEffector {
                         type="range"
                         min="${this.minGain}"
                         max="${this.maxGain}"
-                        step="0.1"
+                        step="0.01"
                         value="${this.audioState.eq[index]}"
                         class="vertical-slider"
                         id="eq-${index}"
@@ -728,8 +728,8 @@ class EQEffector {
 
     formatGain(value) {
         const gain = this.clampGain(value);
-        if (Math.abs(gain) < 0.05) return "0.0";
-        return `${gain > 0 ? "+" : ""}${gain.toFixed(1)}`;
+        if (Math.abs(gain) < 0.005) return "0.00";
+        return `${gain > 0 ? "+" : ""}${gain.toFixed(2)}`;
     }
 
     updateUI() {

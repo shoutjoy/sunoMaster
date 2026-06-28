@@ -422,9 +422,9 @@ body.light-mode .eq-slider-shell {
     color: #22d3ee;
     filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.45));
 }
-.eq-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 0.48rem; }
+.eq-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 0.48rem; flex-wrap: wrap; justify-content: flex-end; }
 .eq-preset-select {
-    min-width: 7.6rem;
+    min-width: 10rem;
     height: 2rem;
     border: 1px solid #273449;
     border-radius: 0.5rem;
@@ -436,6 +436,35 @@ body.light-mode .eq-slider-shell {
     outline: none;
 }
 .eq-preset-select:focus { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.12); }
+.eq-preset-name {
+    width: 7.8rem;
+    height: 2rem;
+    border: 1px solid #273449;
+    border-radius: 0.5rem;
+    background: #070d17;
+    padding: 0 0.55rem;
+    color: #dbeafe;
+    font-size: 0.66rem;
+    font-weight: 750;
+    outline: none;
+}
+.eq-preset-name::placeholder { color: #526175; }
+.eq-preset-name:focus { border-color: #22d3ee; box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.12); }
+.eq-preset-action {
+    height: 2rem;
+    border: 1px solid rgba(34, 211, 238, 0.38);
+    border-radius: 0.48rem;
+    background: rgba(8, 145, 178, 0.17);
+    padding: 0 0.55rem;
+    color: #67e8f9;
+    font-size: 0.58rem;
+    font-weight: 950;
+    letter-spacing: 0.04em;
+}
+.eq-preset-action:hover:not(:disabled) { border-color: #67e8f9; background: rgba(8, 145, 178, 0.33); color: #ecfeff; }
+.eq-preset-action.is-danger { border-color: rgba(248, 113, 113, 0.38); background: rgba(127, 29, 29, 0.16); color: #fca5a5; }
+.eq-preset-action.is-danger:hover:not(:disabled) { border-color: #fca5a5; background: rgba(127, 29, 29, 0.32); color: #fee2e2; }
+.eq-preset-action:disabled { cursor: not-allowed; opacity: 0.38; filter: grayscale(0.5); }
 .eq-toggle {
     min-width: 2.8rem;
     height: 2rem;
@@ -647,6 +676,7 @@ body.light-mode .eq-panel { border-color: #b8c5d6; background: #ffffff; }
 body.light-mode .eq-panel-header { border-color: #cbd5e1; }
 body.light-mode .eq-panel-header h3 { color: #172033; }
 body.light-mode .eq-preset-select,
+body.light-mode .eq-preset-name,
 body.light-mode .eq-toggle,
 body.light-mode .eq-collapse-btn { border-color: #cbd5e1; background-color: #f8fafc; color: #475569; }
 body.light-mode .eq-response-shell,

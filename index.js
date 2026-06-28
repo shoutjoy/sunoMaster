@@ -47,6 +47,8 @@ const exportPrefixInput = document.getElementById('export-prefix-input');
 const exportFilenamePreview = document.getElementById('export-filename-preview');
 const stemConsoleVisibilitySetting = document.getElementById('setting-show-stem-console');
 const stemConsoleSection = document.getElementById('stem-console-section');
+const aiPresetVisibilitySetting = document.getElementById('setting-show-ai-presets');
+const aiPresetSection = document.getElementById('ai-100-preset-section');
 const spectrumBandCountInput = document.getElementById('spectrum-band-count');
 const spectrumBarsBtn = document.getElementById('spectrum-bars-btn');
 const spectrumWaveBtn = document.getElementById('spectrum-wave-btn');
@@ -55,6 +57,7 @@ const globalPlayerShell = document.getElementById('global-player-shell');
 const PLAYER_MODE_STORAGE_KEY = 'jd-player-display-mode';
 const EXPORT_PREFIX_STORAGE_KEY = 'jd-export-filename-prefix';
 const STEM_CONSOLE_VISIBLE_STORAGE_KEY = 'jd-show-stem-console';
+const AI_PRESETS_VISIBLE_STORAGE_KEY = 'jd-show-ai-100-presets';
 const SPECTRUM_BAND_COUNT_STORAGE_KEY = 'jd-spectrum-band-count';
 const SPECTRUM_VIEW_MODE_STORAGE_KEY = 'jd-spectrum-view-mode';
 const DEFAULT_EXPORT_PREFIX = 'mastered_';
@@ -143,6 +146,28 @@ applyStemConsoleVisibility(shouldShowStemConsole, false);
 if (stemConsoleVisibilitySetting) {
     stemConsoleVisibilitySetting.onchange = () => {
         applyStemConsoleVisibility(stemConsoleVisibilitySetting.checked);
+        window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
+    };
+}
+
+function applyAiPresetVisibility(visible, persist = true) {
+    const shouldShow = Boolean(visible);
+    if (aiPresetSection) aiPresetSection.hidden = !shouldShow;
+    if (aiPresetVisibilitySetting) aiPresetVisibilitySetting.checked = shouldShow;
+    if (persist) {
+        try { localStorage.setItem(AI_PRESETS_VISIBLE_STORAGE_KEY, String(shouldShow)); } catch (error) {}
+    }
+}
+
+let shouldShowAiPresets = false;
+try {
+    shouldShowAiPresets = localStorage.getItem(AI_PRESETS_VISIBLE_STORAGE_KEY) === 'true';
+} catch (error) {}
+applyAiPresetVisibility(shouldShowAiPresets, false);
+
+if (aiPresetVisibilitySetting) {
+    aiPresetVisibilitySetting.onchange = () => {
+        applyAiPresetVisibility(aiPresetVisibilitySetting.checked);
         window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
     };
 }
@@ -1119,8 +1144,8 @@ function buildMicroMasterPreset(name, presetIndex) {
         if (name.includes("Dense Trim") || name.includes("Translation") || name.includes("Mono Safe")) value -= gaussian(250, 0.3, 0.18) + gaussian(4200, 0.28, 0.15);
 
         const microVariation = Math.sin((presetIndex + 1) * 0.71 + idx * 0.83) * 0.08;
-        const shaped = Math.max(-1.35, Math.min(1.35, value + microVariation));
-        return Math.round(shaped * 10) / 10;
+        const shaped = Math.max(-1.35, Math.min(1.35, value + microVariation)) * 0.1;
+        return Math.round(shaped * 100) / 100;
     };
     return eq.frequencies.map((_, idx) => valueAt(idx));
 }
