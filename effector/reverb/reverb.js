@@ -282,7 +282,7 @@ class ReverbEffector {
         const tailGraphW = graphW - (preX - x0);
         const density = 1.15 + (diffusion / 100) * 1.65;
         const endX = preX + (decay / maxTime) * tailGraphW;
-        const middleP = 0.45;
+        const middleP = 0.18 + (mix / 100) * 0.62;
         const middleX = preX + (decay * middleP / maxTime) * tailGraphW;
         const middleY = baseY - Math.pow(1 - middleP, density) * graphH * 0.86;
 
@@ -403,15 +403,27 @@ class ReverbEffector {
             if (!this.graphDrag || this.graphDrag.canvas !== canvas) return;
             const point = this.pointerPosition(canvas, event);
             const layout = this.visual.envelopeLayout;
-            const time = ((point.x - layout.preX) / layout.tailGraphW) * layout.maxTime;
+            const rvb = this.audioState.reverb;
+            const pointX = Math.max(layout.x0, Math.min(layout.x0 + layout.graphW, point.x));
+            const pointY = Math.max(layout.top, Math.min(layout.baseY, point.y));
+            const time = ((pointX - layout.preX) / layout.tailGraphW) * layout.maxTime;
             if (this.graphDrag.type === 'preDelay') {
-                const preDelay = ((point.x - layout.x0) / Math.min(layout.graphW * 0.22, 80)) * 150;
+                const preDelay = ((pointX - layout.x0) / Math.min(layout.graphW * 0.22, 80)) * 150;
                 this.setGraphValue('preDelay', preDelay);
             }
+            else if (this.graphDrag.type === 'tail') {
+                this.setGraphValue('decay', time - rvb.preDelay / 1000);
+            }
             else {
-                this.setGraphValue('decay', time - this.audioState.reverb.preDelay / 1000);
-                const vertical = Math.max(0, Math.min(1, (layout.baseY - point.y) / layout.graphH));
-                this.setGraphValue(this.graphDrag.type === 'shape' ? 'diffusion' : 'mix', vertical * 100);
+                const decaySec = Math.max(0.3, rvb.decay);
+                const relativeInDecay = decaySec
+                    ? (((pointX - layout.preX) / layout.tailGraphW) * layout.maxTime) / decaySec
+                    : 0.45;
+                const mixFromX = ((Math.max(0.18, Math.min(0.8, relativeInDecay)) - 0.18) / 0.62) * 100;
+                const vertical = Math.max(0, Math.min(1, (layout.baseY - pointY) / layout.graphH));
+                const diffusionFromY = vertical * 100;
+                this.setGraphValue('mix', mixFromX);
+                this.setGraphValue('diffusion', diffusionFromY);
             }
         };
         const finish = (event) => {

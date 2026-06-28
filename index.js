@@ -426,8 +426,11 @@ let waveformMessageTimer = 0;
 let currentAudioFileBlob = null;
 let currentAudioFileName = "";
 let audioTimelineClips = [];
+let activeTimelineClipIndex = 0;
 let pendingUploadChoiceResolve = null;
+let forceAppendNextUpload = false;
 let timelineRebuildInProgress = false;
+let timelineGapMs = 2000;
 
 function sanitizeFilenamePart(value) {
     return String(value ?? '').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').slice(0, 80);
@@ -494,6 +497,9 @@ const progressBar = document.getElementById('progress-bar');
 const progressPercent = document.getElementById('progress-percent');
 const skipBackBtn = document.getElementById('skip-back-btn');
 const skipForwardBtn = document.getElementById('skip-forward-btn');
+const trackPrevBtn = document.getElementById('track-prev-btn');
+const trackNextBtn = document.getElementById('track-next-btn');
+const trackNav = document.querySelector('.transport-track-nav');
 const seekStartBtn = document.getElementById('seek-start-btn');
 const seekEndBtn = document.getElementById('seek-end-btn');
 const panControl = document.getElementById('pan-control');
@@ -537,6 +543,11 @@ const audioTimelineContent = document.getElementById('audio-timeline-content');
 const audioTimelineChevron = document.getElementById('audio-timeline-chevron');
 const audioTimelineSummary = document.getElementById('audio-timeline-summary');
 const audioTimelineStrip = document.getElementById('audio-timeline-strip');
+const audioTimelineGapInput = document.getElementById('audio-timeline-gap');
+const audioTimelineGapValue = document.getElementById('audio-timeline-gap-val');
+const audioTimelineGapMinus = document.getElementById('audio-timeline-gap-minus');
+const audioTimelineGapPlus = document.getElementById('audio-timeline-gap-plus');
+const audioTimelineGapApplyAll = document.getElementById('audio-timeline-gap-apply-all');
 const compGrBar = document.getElementById('comp-gr-bar');
 const compGrVal = document.getElementById('comp-gr-val');
 
@@ -716,7 +727,7 @@ function setAllPanelsCollapsed(collapsed) {
             handleResize();
             drawLoudnessHistory();
             limiter.updateLimiterVisualizers?.();
-            reverb.updateGraphs?.();
+            reverb.updateReverbVisualizers?.();
             saturation.updateVisualizers?.();
         }, 0);
     }
@@ -1197,7 +1208,7 @@ initAudioUpload({
         trackName.innerText = `${file.name} 웨이브폼 불러오는 중...`;
         detectorStatus.innerText = '(분석 연산 중)';
     },
-    onDecoded: ({ file, buffer }) => completeDecodedAudioWithLoading(file, buffer),
+    onDecoded: ({ file, buffer, batchIndex = 0, batchTotal = 1 }) => completeDecodedAudioWithLoading(file, buffer, { batchIndex, batchTotal }),
     onError: (error) => {
         stopWaveformLoading(false, error?.message || '파일 로드 실패');
         console.error('Audio upload failed:', error);
@@ -1441,17 +1452,24 @@ function stopWaveformLoading(done = false, message = '') {
     drawAudioWaveform(waveformProgress);
 }
 
-function completeDecodedAudioWithLoading(file, buffer) {
+function completeDecodedAudioWithLoading(file, buffer, options = {}) {
     const loadingState = waveformLoadingState;
     const elapsed = loadingState ? performance.now() - loadingState.startedAt : 900;
     const remaining = Math.max(0, 850 - elapsed);
-    window.setTimeout(() => {
-        if (loadingState && waveformLoadingState !== loadingState) return;
-        void handleDecodedAudio(file, buffer).catch((error) => {
-            stopWaveformLoading(false, error?.message || '파일 로드 실패');
-            console.error('Audio timeline upload failed:', error);
-        });
-    }, remaining);
+    return new Promise((resolve) => {
+        window.setTimeout(() => {
+            if (loadingState && waveformLoadingState !== loadingState) {
+                resolve();
+                return;
+            }
+            void handleDecodedAudio(file, buffer, options)
+                .catch((error) => {
+                    stopWaveformLoading(false, error?.message || '파일 로드 실패');
+                    console.error('Audio timeline upload failed:', error);
+                })
+                .finally(resolve);
+        }, remaining);
+    });
 }
 
 function buildWaveformPeaks(buffer, bucketCount = 900) {
@@ -1560,11 +1578,6 @@ function drawAudioWaveform(progress = waveformProgress) {
     ctx2.lineTo(playX, height);
     ctx2.stroke();
 
-    if (!originalBuffer) {
-        ctx2.fillStyle = '#64748b';
-        ctx2.font = `${11 * dpr}px monospace`;
-        ctx2.fillText('Waiting for audio upload...', 12 * dpr, centerY + (4 * dpr));
-    }
 }
 
 function updateWaveformProgress(current = 0) {
@@ -2373,8 +2386,105 @@ function createTimelineClip(file, buffer) {
         name: file?.name || 'Audio Clip',
         buffer,
         start,
-        duration: buffer.duration
+        duration: buffer.duration,
+        volume: 100,
+        gapAfterMs: timelineGapMs,
+        fadeInEnabled: false,
+        fadeInDuration: 1,
+        fadeOutEnabled: false,
+        fadeOutDuration: 1,
+        settings: captureTimelineSettings()
     };
+}
+
+function captureTimelineSettings() {
+    return JSON.parse(JSON.stringify({
+        eq: audioState.eq,
+        eqEnabled: audioState.eqEnabled,
+        masterSaturation: audioState.masterSaturation,
+        reverb: audioState.reverb,
+        compressor: audioState.compressor,
+        limiter: audioState.limiter,
+        noiseEnabled: audioState.noiseEnabled,
+        noise: audioState.noise,
+        deesserEnabled: audioState.deesserEnabled,
+        deesser: audioState.deesser,
+        saturatorEnabled: audioState.saturatorEnabled,
+        saturator: audioState.saturator,
+        pan: audioState.pan,
+        front: audioState.front,
+        master: audioState.master
+    }));
+}
+
+function applyTimelineSettings(settings) {
+    if (!settings) return;
+    Object.assign(audioState, JSON.parse(JSON.stringify(settings)));
+    applyAllLoadedSettings();
+}
+
+function saveActiveTimelineSettings() {
+    const clip = audioTimelineClips[activeTimelineClipIndex];
+    if (clip) clip.settings = captureTimelineSettings();
+}
+
+function getTimelineClipIndexAt(time) {
+    if (!audioTimelineClips.length) return -1;
+    const safeTime = Math.max(0, Number(time) || 0);
+    const found = audioTimelineClips.findIndex((clip, index) => {
+        const end = clip.start + clip.duration;
+        return safeTime >= clip.start && (safeTime < end || index === audioTimelineClips.length - 1);
+    });
+    if (found >= 0) return found;
+    for (let i = audioTimelineClips.length - 1; i >= 0; i -= 1) {
+        if (safeTime >= audioTimelineClips[i].start) return i;
+    }
+    return 0;
+}
+
+function getTimelineTotalDuration() {
+    if (!audioTimelineClips.length) return 0;
+    const last = audioTimelineClips[audioTimelineClips.length - 1];
+    return Math.max(0, (last.start || 0) + (last.duration || 0));
+}
+
+function setTimelineGapMs(value, { rebuild = true } = {}) {
+    timelineGapMs = Math.max(0, Math.min(10000, Math.round(Number(value) || 0)));
+    if (audioTimelineGapInput) audioTimelineGapInput.value = String(timelineGapMs);
+    if (audioTimelineGapValue) audioTimelineGapValue.textContent = `${timelineGapMs} ms`;
+    if (rebuild && audioTimelineClips.length) {
+        void refreshTimelineAudioBuffer({ keepTime: true, restart: true });
+    }
+}
+
+function setTimelineClipGap(index, value, { rebuild = true } = {}) {
+    const clip = audioTimelineClips[index];
+    if (!clip) return;
+    clip.gapAfterMs = Math.max(0, Math.min(10000, Math.round(Number(value) || 0)));
+    if (rebuild) void refreshTimelineAudioBuffer({ keepTime: true, restart: true });
+    else renderAudioTimeline();
+}
+
+function applyTimelineGapToAll() {
+    audioTimelineClips.forEach((clip) => {
+        clip.gapAfterMs = timelineGapMs;
+    });
+    if (audioTimelineClips.length) {
+        void refreshTimelineAudioBuffer({ keepTime: true, restart: true });
+    } else {
+        renderAudioTimeline();
+    }
+}
+
+function setActiveTimelineClip(index, { seek = true, restoreSettings = true, keepPlayback = false } = {}) {
+    if (!audioTimelineClips.length) return;
+    const nextIndex = Math.max(0, Math.min(audioTimelineClips.length - 1, Number(index) || 0));
+    if (nextIndex !== activeTimelineClipIndex) saveActiveTimelineSettings();
+    activeTimelineClipIndex = nextIndex;
+    const clip = audioTimelineClips[activeTimelineClipIndex];
+    if (restoreSettings) applyTimelineSettings(clip.settings);
+    renderAudioTimeline();
+    if (seek) void seekToTime(clip.start, keepPlayback);
 }
 
 function rebuildAudioTimelineBuffer() {
@@ -2383,10 +2493,12 @@ function rebuildAudioTimelineBuffer() {
     const sampleRate = audioCtx.sampleRate;
     const channels = Math.max(1, ...audioTimelineClips.map((clip) => clip.buffer.numberOfChannels));
     let cursor = 0;
-    const normalized = audioTimelineClips.map((clip) => {
+    const normalized = audioTimelineClips.map((clip, index) => {
         const start = cursor / sampleRate;
         const length = clip.buffer.length;
         cursor += length;
+        const gapSamples = Math.max(0, Math.round((Number(clip.gapAfterMs ?? timelineGapMs) || 0) / 1000 * sampleRate));
+        if (index < audioTimelineClips.length - 1) cursor += gapSamples;
         return { ...clip, start, duration: length / sampleRate };
     });
     audioTimelineClips = normalized;
@@ -2395,19 +2507,57 @@ function rebuildAudioTimelineBuffer() {
     audioTimelineClips.forEach((clip) => {
         for (let ch = 0; ch < channels; ch += 1) {
             const sourceChannel = Math.min(ch, clip.buffer.numberOfChannels - 1);
-            combined.getChannelData(ch).set(clip.buffer.getChannelData(sourceChannel), offset);
+            const sourceData = clip.buffer.getChannelData(sourceChannel);
+            const targetData = combined.getChannelData(ch);
+            const volumeGain = Math.max(0, Math.min(3, Number(clip.volume ?? 100) / 100));
+            const fadeInSamples = clip.fadeInEnabled ? Math.min(sourceData.length, Math.round((Number(clip.fadeInDuration) || 1) * sampleRate)) : 0;
+            const fadeOutSamples = clip.fadeOutEnabled ? Math.min(sourceData.length, Math.round((Number(clip.fadeOutDuration) || 1) * sampleRate)) : 0;
+            for (let i = 0; i < sourceData.length; i += 1) {
+                let gain = volumeGain;
+                if (fadeInSamples > 0 && i < fadeInSamples) gain *= i / Math.max(1, fadeInSamples);
+                if (fadeOutSamples > 0 && i >= sourceData.length - fadeOutSamples) {
+                    gain *= (sourceData.length - i) / Math.max(1, fadeOutSamples);
+                }
+                targetData[offset + i] = sourceData[i] * gain;
+            }
         }
         offset += clip.buffer.length;
+        if (clip !== audioTimelineClips[audioTimelineClips.length - 1]) {
+            offset += Math.max(0, Math.round((Number(clip.gapAfterMs ?? timelineGapMs) || 0) / 1000 * sampleRate));
+        }
     });
     timelineRebuildInProgress = false;
     return combined;
+}
+
+async function refreshTimelineAudioBuffer({ keepTime = true, restart = true, saveSettings = true } = {}) {
+    if (!audioTimelineClips.length) return;
+    if (saveSettings) saveActiveTimelineSettings();
+    const currentTime = keepTime ? getCurrentPlaybackTime() : audioTimelineClips[activeTimelineClipIndex]?.start || 0;
+    const wasPlaying = restart && isPlaying;
+    if (sourceNode) {
+        try { sourceNode.stop(); } catch (error) {}
+        try { sourceNode.disconnect(); } catch (error) {}
+    }
+    isPlaying = false;
+    sourceNode = null;
+    const combined = rebuildAudioTimelineBuffer();
+    if (!combined) return;
+    originalBuffer = combined;
+    waveformPeaks = buildWaveformPeaks(combined);
+    const target = Math.max(0, Math.min(combined.duration, currentTime));
+    pausedAt = target;
+    setProgressBarValue(combined.duration ? (target / combined.duration) * 100 : 0);
+    updateWaveformProgress(target);
+    renderAudioTimeline();
+    if (wasPlaying) await startPlaybackAt(target);
 }
 
 function renderAudioTimeline() {
     if (!audioTimelinePanel || !audioTimelineStrip) return;
     audioTimelinePanel.classList.remove('hidden');
     if (audioTimelineSummary) {
-        const total = audioTimelineClips.reduce((sum, clip) => sum + clip.duration, 0);
+        const total = getTimelineTotalDuration();
         audioTimelineSummary.textContent = `${audioTimelineClips.length}개 트랙 · ${formatTime(total)}`;
     }
     const trackCount = document.getElementById('audio-timeline-track-count');
@@ -2419,7 +2569,7 @@ function renderAudioTimeline() {
         audioTimelineStrip.replaceChildren(empty);
         return;
     }
-    const totalDuration = Math.max(1, audioTimelineClips.reduce((sum, clip) => sum + clip.duration, 0));
+    const totalDuration = Math.max(1, getTimelineTotalDuration());
 
     const ruler = document.createElement('div');
     ruler.className = 'audio-timeline-ruler';
@@ -2455,7 +2605,8 @@ function renderAudioTimeline() {
     list.className = 'audio-timeline-clip-list';
     audioTimelineClips.forEach((clip, index) => {
         const item = document.createElement('div');
-        item.className = `audio-timeline-clip${index === 0 ? ' is-main' : ''}`;
+        item.className = `audio-timeline-clip${index === 0 ? ' is-main' : ''}${index === activeTimelineClipIndex ? ' is-active' : ''}`;
+        item.dataset.clipIndex = String(index);
         const idx = document.createElement('span');
         idx.className = 'audio-timeline-clip-index';
         idx.textContent = index === 0 ? 'M' : String(index + 1);
@@ -2467,27 +2618,62 @@ function renderAudioTimeline() {
         const meta = document.createElement('span');
         meta.className = 'audio-timeline-clip-meta';
         meta.textContent = `${formatTime(clip.start)} → ${formatTime(clip.start + clip.duration)}`;
-        body.append(name, meta);
+        const controls = document.createElement('div');
+        controls.className = 'audio-timeline-clip-controls';
+        controls.innerHTML = `
+            <label>Vol <input type="range" min="0" max="200" step="1" value="${Math.round(clip.volume ?? 100)}" data-timeline-action="volume" data-index="${index}"><b>${Math.round(clip.volume ?? 100)}%</b></label>
+            <label class="audio-timeline-check"><input type="checkbox" ${clip.fadeInEnabled ? 'checked' : ''} data-timeline-action="fadeInToggle" data-index="${index}"> Fade In</label>
+            <input class="audio-timeline-fade-time" type="number" min="0.1" max="30" step="0.1" value="${Number(clip.fadeInDuration ?? 1)}" data-timeline-action="fadeInTime" data-index="${index}">
+            <label class="audio-timeline-check"><input type="checkbox" ${clip.fadeOutEnabled ? 'checked' : ''} data-timeline-action="fadeOutToggle" data-index="${index}"> Fade Out</label>
+            <input class="audio-timeline-fade-time" type="number" min="0.1" max="30" step="0.1" value="${Number(clip.fadeOutDuration ?? 1)}" data-timeline-action="fadeOutTime" data-index="${index}">
+            <label class="audio-timeline-gap-inline">Next Gap <button type="button" data-timeline-action="gapMinus" data-index="${index}" ${index >= audioTimelineClips.length - 1 ? 'disabled' : ''}>−</button><input class="audio-timeline-gap-time" type="number" min="0" max="10000" step="10" value="${Math.round(clip.gapAfterMs ?? timelineGapMs)}" data-timeline-action="gapAfter" data-index="${index}" ${index >= audioTimelineClips.length - 1 ? 'disabled' : ''}><button type="button" data-timeline-action="gapPlus" data-index="${index}" ${index >= audioTimelineClips.length - 1 ? 'disabled' : ''}>+</button><b>ms</b></label>
+        `;
+        body.append(name, meta, controls);
         const duration = document.createElement('span');
         duration.className = 'audio-timeline-clip-duration';
-        duration.textContent = formatTime(clip.duration);
+        duration.innerHTML = `
+            <button type="button" data-timeline-action="select" data-index="${index}" title="이 곡 듣기"><i class="fa-solid fa-play"></i></button>
+            <button type="button" data-timeline-action="saveSettings" data-index="${index}" title="현재 설정 저장"><i class="fa-solid fa-floppy-disk"></i></button>
+            <button type="button" data-timeline-action="delete" data-index="${index}" title="삭제" ${audioTimelineClips.length <= 1 ? 'disabled' : ''}><i class="fa-solid fa-trash"></i></button>
+            <span>${formatTime(clip.duration)}</span>
+        `;
         item.append(idx, body, duration);
         list.appendChild(item);
     });
 
     const addSlot = document.createElement('div');
     addSlot.className = 'audio-timeline-add-slot';
+    addSlot.dataset.timelineAction = 'appendUpload';
+    addSlot.setAttribute('role', 'button');
+    addSlot.setAttribute('tabindex', '0');
+    addSlot.setAttribute('aria-label', '오디오 타임라인에 음원 추가');
     addSlot.innerHTML = `<i class="fa-solid fa-plus"></i><span>추가 음원은 업로드 후<br>“오디오 타임라인에 추가” 선택</span>`;
     list.appendChild(addSlot);
     audioTimelineStrip.replaceChildren(ruler, list);
     updateAudioTimelinePlayhead(getCurrentPlaybackTime());
+    updateTrackNavigationButtons();
 }
 
 function updateAudioTimelinePlayhead(current = 0) {
     const playhead = document.getElementById('audio-timeline-playhead');
     if (!playhead || !audioTimelineClips.length) return;
-    const total = Math.max(1, audioTimelineClips.reduce((sum, clip) => sum + clip.duration, 0));
+    const total = Math.max(1, getTimelineTotalDuration());
     playhead.style.left = `${Math.max(0, Math.min(100, (current / total) * 100))}%`;
+    const nextIndex = getTimelineClipIndexAt(current);
+    if (nextIndex >= 0 && nextIndex !== activeTimelineClipIndex) {
+        saveActiveTimelineSettings();
+        activeTimelineClipIndex = nextIndex;
+        applyTimelineSettings(audioTimelineClips[nextIndex]?.settings);
+        renderAudioTimeline();
+    }
+    updateTrackNavigationButtons();
+}
+
+function updateTrackNavigationButtons() {
+    const enabled = audioTimelineClips.length > 1;
+    trackNav?.classList.toggle('has-tracks', enabled);
+    if (trackPrevBtn) trackPrevBtn.disabled = !enabled || activeTimelineClipIndex <= 0;
+    if (trackNextBtn) trackNextBtn.disabled = !enabled || activeTimelineClipIndex >= audioTimelineClips.length - 1;
 }
 
 if (audioTimelineHeader && audioTimelineContent) {
@@ -2498,6 +2684,107 @@ if (audioTimelineHeader && audioTimelineContent) {
         if (audioTimelineChevron) audioTimelineChevron.className = `fa-solid fa-chevron-${collapsed ? 'down' : 'up'}`;
     };
 }
+
+audioTimelineStrip?.addEventListener('click', async (event) => {
+    const control = event.target.closest('[data-timeline-action]');
+    const clipCard = event.target.closest('.audio-timeline-clip');
+    if (!control && clipCard) {
+        setActiveTimelineClip(Number(clipCard.dataset.clipIndex || 0));
+        return;
+    }
+    if (!control) return;
+    const index = Number(control.dataset.index || 0);
+    const action = control.dataset.timelineAction;
+    if (action === 'appendUpload') {
+        event.stopPropagation();
+        forceAppendNextUpload = Boolean(originalBuffer);
+        upload?.click();
+        return;
+    }
+    const clip = audioTimelineClips[index];
+    if (!clip) return;
+    event.stopPropagation();
+    if (action === 'select') {
+        setActiveTimelineClip(index);
+    } else if (action === 'saveSettings') {
+        activeTimelineClipIndex = index;
+        saveActiveTimelineSettings();
+        renderAudioTimeline();
+    } else if (action === 'delete' && audioTimelineClips.length > 1) {
+        const wasActive = index === activeTimelineClipIndex;
+        if (!wasActive) saveActiveTimelineSettings();
+        audioTimelineClips.splice(index, 1);
+        activeTimelineClipIndex = Math.max(0, Math.min(audioTimelineClips.length - 1, wasActive ? index : activeTimelineClipIndex));
+        await refreshTimelineAudioBuffer({ keepTime: false, restart: true, saveSettings: false });
+        applyTimelineSettings(audioTimelineClips[activeTimelineClipIndex]?.settings);
+    } else if (action === 'gapMinus') {
+        setTimelineClipGap(index, (clip.gapAfterMs ?? timelineGapMs) - 10);
+    } else if (action === 'gapPlus') {
+        setTimelineClipGap(index, (clip.gapAfterMs ?? timelineGapMs) + 10);
+    }
+});
+
+audioTimelineStrip?.addEventListener('keydown', (event) => {
+    const control = event.target.closest('[data-timeline-action="appendUpload"]');
+    if (!control || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    forceAppendNextUpload = Boolean(originalBuffer);
+    upload?.click();
+});
+
+audioTimelineStrip?.addEventListener('input', async (event) => {
+    const control = event.target.closest('[data-timeline-action]');
+    if (!control) return;
+    const index = Number(control.dataset.index || 0);
+    const clip = audioTimelineClips[index];
+    if (!clip) return;
+    const action = control.dataset.timelineAction;
+    if (action === 'volume') {
+        clip.volume = Number(control.value || 100);
+        const label = control.nextElementSibling;
+        if (label) label.textContent = `${Math.round(clip.volume)}%`;
+    } else if (action === 'fadeInTime') {
+        clip.fadeInDuration = Math.max(0.1, Math.min(30, Number(control.value || 1)));
+    } else if (action === 'fadeOutTime') {
+        clip.fadeOutDuration = Math.max(0.1, Math.min(30, Number(control.value || 1)));
+    } else if (action === 'gapAfter') {
+        clip.gapAfterMs = Math.max(0, Math.min(10000, Math.round(Number(control.value || 0))));
+    }
+});
+
+audioTimelineStrip?.addEventListener('change', async (event) => {
+    const control = event.target.closest('[data-timeline-action]');
+    if (!control) return;
+    const index = Number(control.dataset.index || 0);
+    const clip = audioTimelineClips[index];
+    if (!clip) return;
+    if (control.dataset.timelineAction === 'fadeInToggle') {
+        clip.fadeInEnabled = control.checked;
+        await refreshTimelineAudioBuffer({ keepTime: true, restart: true });
+    } else if (control.dataset.timelineAction === 'fadeOutToggle') {
+        clip.fadeOutEnabled = control.checked;
+        await refreshTimelineAudioBuffer({ keepTime: true, restart: true });
+    } else if (['volume', 'fadeInTime', 'fadeOutTime', 'gapAfter'].includes(control.dataset.timelineAction)) {
+        await refreshTimelineAudioBuffer({ keepTime: true, restart: true });
+    }
+});
+
+audioTimelineGapInput?.addEventListener('input', () => {
+    setTimelineGapMs(audioTimelineGapInput.value, { rebuild: false });
+});
+audioTimelineGapInput?.addEventListener('change', () => {
+    setTimelineGapMs(audioTimelineGapInput.value, { rebuild: true });
+});
+audioTimelineGapMinus?.addEventListener('click', () => {
+    setTimelineGapMs(timelineGapMs - 100, { rebuild: true });
+});
+audioTimelineGapPlus?.addEventListener('click', () => {
+    setTimelineGapMs(timelineGapMs + 100, { rebuild: true });
+});
+audioTimelineGapApplyAll?.addEventListener('click', () => {
+    applyTimelineGapToAll();
+});
+setTimelineGapMs(timelineGapMs, { rebuild: false });
 
 function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, resumePlayback = false } = {}) {
     resetLoudnessStats();
@@ -2515,8 +2802,8 @@ function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, 
     const startAt = Math.max(0, Math.min(buffer.duration, resumeAt || 0));
     updateWaveformProgress(startAt);
     trackName.innerText = mode === 'append'
-        ? `타임라인 추가 완료: ${file.name}`
-        : `로드 완료: ${file.name}`;
+        ? `${audioTimelineClips.length}개 트랙 타임라인 · ${file.name}`
+        : file.name;
 
     activeStemIds = [];
     const activeCount = Math.floor(Math.random() * 5) + 8;
@@ -2552,6 +2839,12 @@ function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, 
     updateUtilityEffectToggles();
     updateCompressorRangeFills();
 
+    if (mode === 'append') {
+        applyTimelineSettings(audioTimelineClips[activeTimelineClipIndex]?.settings);
+    } else if (audioTimelineClips[0]) {
+        audioTimelineClips[0].settings = captureTimelineSettings();
+    }
+
     pausedAt = startAt;
     isPlaying = false;
     setProgressBarValue(buffer.duration ? (startAt / buffer.duration) * 100 : 0);
@@ -2562,15 +2855,20 @@ function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, 
 }
 
 // Audio upload completion: keep workstation-specific state in the main application.
-async function handleDecodedAudio(file, buffer) {
+async function handleDecodedAudio(file, buffer, { batchIndex = 0, batchTotal = 1 } = {}) {
     const hasExistingAudio = Boolean(originalBuffer);
+    const isMultiUpload = batchTotal > 1;
     let mode = 'replace';
-    if (hasExistingAudio) {
+    if (hasExistingAudio && (forceAppendNextUpload || isMultiUpload)) {
+        mode = 'append';
+    } else if (hasExistingAudio) {
         mode = await showAudioUploadChoice(file);
     }
+    forceAppendNextUpload = false;
 
     const resumeAt = getCurrentPlaybackTime();
     const resumePlayback = mode === 'append' && isPlaying;
+    if (mode === 'append') saveActiveTimelineSettings();
     stopCurrentAudioSource(mode === 'append');
 
     if (mode === 'append') {
@@ -2580,11 +2878,13 @@ async function handleDecodedAudio(file, buffer) {
         }
         audioTimelineClips.push(createTimelineClip(file, buffer));
         const combined = rebuildAudioTimelineBuffer();
+        activeTimelineClipIndex = getTimelineClipIndexAt(resumeAt);
         applyDecodedAudioState(file, combined || buffer, { mode, resumeAt, resumePlayback });
         return;
     }
 
     audioTimelineClips = [createTimelineClip(file, buffer)];
+    activeTimelineClipIndex = 0;
     applyDecodedAudioState(file, buffer, { mode: 'replace', resumeAt: 0, resumePlayback: false });
 }
 
@@ -2622,6 +2922,8 @@ if (skipBackBtn) skipBackBtn.onclick = () => seekToTime((isPlaying && audioCtx ?
 if (skipForwardBtn) skipForwardBtn.onclick = () => seekToTime((isPlaying && audioCtx ? audioCtx.currentTime - startTime : pausedAt) + 10);
 if (seekStartBtn) seekStartBtn.onclick = () => seekToTime(0);
 if (seekEndBtn) seekEndBtn.onclick = () => seekToTime(originalBuffer?.duration || 0);
+if (trackPrevBtn) trackPrevBtn.onclick = () => setActiveTimelineClip(activeTimelineClipIndex - 1);
+if (trackNextBtn) trackNextBtn.onclick = () => setActiveTimelineClip(activeTimelineClipIndex + 1);
 progressBar.onchange = async (e) => {
     if (!originalBuffer) return;
     let pct = parseFloat(e.target.value) / 100;
@@ -3232,7 +3534,7 @@ function openDB() {
     });
 }
 
-async function saveProject(name, audioBlob, audioFileName, activeStemIds, audioState, effectorSettings) {
+async function saveProject(name, audioBlob, audioFileName, activeStemIds, audioState, effectorSettings, audioTimeline = null) {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
@@ -3248,7 +3550,8 @@ async function saveProject(name, audioBlob, audioFileName, activeStemIds, audioS
                 audioFileName,
                 activeStemIds,
                 audioState: JSON.parse(JSON.stringify(audioState)),
-                effectors: effectorSettings
+                effectors: effectorSettings,
+                audioTimeline
             };
             if (existing) {
                 project.id = existing.id; // Overwrite
@@ -3293,6 +3596,142 @@ function serializeEffectorSettings() {
         }
     }
     return effectorSettings;
+}
+
+function serializeAudioTimelineProject() {
+    saveActiveTimelineSettings();
+    return {
+        activeIndex: activeTimelineClipIndex,
+        gapMs: timelineGapMs,
+        clips: audioTimelineClips.map((clip) => ({
+            name: clip.name,
+            fileBlob: clip.file instanceof Blob ? clip.file : null,
+            volume: clip.volume ?? 100,
+            gapAfterMs: Number(clip.gapAfterMs ?? timelineGapMs),
+            fadeInEnabled: Boolean(clip.fadeInEnabled),
+            fadeInDuration: Number(clip.fadeInDuration ?? 1),
+            fadeOutEnabled: Boolean(clip.fadeOutEnabled),
+            fadeOutDuration: Number(clip.fadeOutDuration ?? 1),
+            settings: clip.settings || captureTimelineSettings()
+        }))
+    };
+}
+
+async function decodeTimelineClipFromProject(savedClip) {
+    if (!savedClip?.fileBlob) return null;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const arrayBuffer = await savedClip.fileBlob.arrayBuffer();
+    const buffer = await audioCtx.decodeAudioData(arrayBuffer.slice(0));
+    return {
+        id: `clip-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        file: savedClip.fileBlob,
+        name: savedClip.name || 'Audio Clip',
+        buffer,
+        start: 0,
+        duration: buffer.duration,
+        volume: savedClip.volume ?? 100,
+        gapAfterMs: Number(savedClip.gapAfterMs ?? timelineGapMs),
+        fadeInEnabled: Boolean(savedClip.fadeInEnabled),
+        fadeInDuration: Number(savedClip.fadeInDuration ?? 1),
+        fadeOutEnabled: Boolean(savedClip.fadeOutEnabled),
+        fadeOutDuration: Number(savedClip.fadeOutDuration ?? 1),
+        settings: savedClip.settings || captureTimelineSettings()
+    };
+}
+
+async function restoreAudioTimelineProject(audioTimeline) {
+    const clips = [];
+    for (const savedClip of audioTimeline?.clips || []) {
+        const clip = await decodeTimelineClipFromProject(savedClip);
+        if (clip) clips.push(clip);
+    }
+    if (!clips.length) return false;
+
+    setTimelineGapMs(audioTimeline.gapMs ?? 2000, { rebuild: false });
+    audioTimelineClips = clips;
+    activeTimelineClipIndex = Math.max(0, Math.min(clips.length - 1, Number(audioTimeline.activeIndex) || 0));
+    const combined = rebuildAudioTimelineBuffer();
+    if (!combined) return false;
+
+    currentAudioFileBlob = clips.length === 1 ? clips[0].file : null;
+    currentAudioFileName = clips.length > 1
+        ? `${clips[0].name.replace(/\.[^/.]+$/, '')}_timeline`
+        : clips[0].name;
+    originalBuffer = combined;
+    sectionRepeatEnabled = false;
+    sectionRepeatInitialized = false;
+    sectionRepeatStart = 0;
+    sectionRepeatEnd = combined.duration;
+    waveformPeaks = buildWaveformPeaks(combined);
+    pausedAt = audioTimelineClips[activeTimelineClipIndex]?.start || 0;
+    isPlaying = false;
+    updateExportFilenamePreview();
+    updateSectionRepeatUI(pausedAt);
+    setProgressBarValue(combined.duration ? (pausedAt / combined.duration) * 100 : 0);
+    updateWaveformProgress(pausedAt);
+    renderAudioTimeline();
+    trackName.innerText = clips.length > 1
+        ? `${clips.length}개 트랙 타임라인 · ${audioTimelineClips[activeTimelineClipIndex]?.name || clips[0].name}`
+        : clips[0].name;
+    playBtn.disabled = false;
+    setAudioTransportAvailability(true);
+    progressBar.disabled = document.getElementById('cfg-seek-bar')?.checked === false;
+    downloadBtn.disabled = false;
+    playBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+    downloadBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+    playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
+    applyTimelineSettings(audioTimelineClips[activeTimelineClipIndex]?.settings);
+    return true;
+}
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        if (!(blob instanceof Blob)) {
+            resolve(null);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+function dataUrlToBlob(dataUrl) {
+    if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.includes(',')) return null;
+    const [header, base64] = dataUrl.split(',');
+    const mime = /data:([^;]+)/.exec(header)?.[1] || 'application/octet-stream';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+}
+
+async function serializeAudioTimelineForFile() {
+    const timeline = serializeAudioTimelineProject();
+    const clips = [];
+    for (const clip of timeline.clips) {
+        clips.push({
+            ...clip,
+            fileBlob: undefined,
+            fileDataUrl: await blobToDataUrl(clip.fileBlob),
+            fileType: clip.fileBlob?.type || 'audio/*'
+        });
+    }
+    return { activeIndex: timeline.activeIndex, gapMs: timeline.gapMs, clips };
+}
+
+function hydrateAudioTimelineFromFile(audioTimeline) {
+    if (!audioTimeline?.clips) return null;
+    return {
+        activeIndex: audioTimeline.activeIndex,
+        gapMs: audioTimeline.gapMs,
+        clips: audioTimeline.clips.map((clip) => ({
+            ...clip,
+            fileBlob: dataUrlToBlob(clip.fileDataUrl)
+        }))
+    };
 }
 
 function applyAllLoadedSettings() {
@@ -3424,7 +3863,7 @@ if (dbSaveBtn) {
 
         try {
             const settings = serializeEffectorSettings();
-            await saveProject(name.trim(), currentAudioFileBlob, currentAudioFileName, activeStemIds, audioState, settings);
+            await saveProject(name.trim(), currentAudioFileBlob, currentAudioFileName, activeStemIds, audioState, settings, serializeAudioTimelineProject());
             alert("프로젝트가 IndexedDB에 정상적으로 저장되었습니다.");
             await updateProjectDropdown();
         } catch(err) {
@@ -3468,6 +3907,11 @@ if (dbLoadSelect) {
                 }
             }
 
+            if (project.audioTimeline?.clips?.length) {
+                const restored = await restoreAudioTimelineProject(project.audioTimeline);
+                if (restored) return;
+            }
+
             // Restore Audio Binary (Blob)
             if (project.audioBlob) {
                 currentAudioFileBlob = project.audioBlob;
@@ -3484,6 +3928,7 @@ if (dbLoadSelect) {
                         resetLoudnessStats();
                         originalBuffer = buffer;
                         audioTimelineClips = [createTimelineClip({ name: currentAudioFileName }, buffer)];
+                        activeTimelineClipIndex = 0;
                         renderAudioTimeline();
                         sectionRepeatEnabled = false;
                         sectionRepeatInitialized = false;
@@ -3519,6 +3964,7 @@ if (dbLoadSelect) {
                 currentAudioFileName = "";
                 originalBuffer = null;
                 audioTimelineClips = [];
+                activeTimelineClipIndex = 0;
                 renderAudioTimeline();
                 sectionRepeatEnabled = false;
                 sectionRepeatInitialized = false;
@@ -3554,15 +4000,16 @@ if (dbLoadSelect) {
 
 const fileExportBtn = document.getElementById('project-export-jjd');
 if (fileExportBtn) {
-    fileExportBtn.onclick = () => {
+    fileExportBtn.onclick = async () => {
         try {
             const settings = serializeEffectorSettings();
             const projectData = {
-                version: "9.0",
+                version: "10.0",
                 timestamp: Date.now(),
                 activeStemIds: activeStemIds,
                 audioState: audioState,
-                effectors: settings
+                effectors: settings,
+                audioTimeline: await serializeAudioTimelineForFile()
             };
 
             const jsonStr = JSON.stringify(projectData, null, 2);
@@ -3594,7 +4041,7 @@ if (fileImportInput) {
         reader.onload = function(evt) {
             try {
                 const data = JSON.parse(evt.target.result);
-                if (data.version !== "9.0") {
+                if (!["9.0", "10.0"].includes(data.version)) {
                     console.warn("JJD file version mismatch. File version: " + data.version);
                 }
 
@@ -3612,6 +4059,15 @@ if (fileImportInput) {
                             effector.setSettings(data.effectors[key]);
                         }
                     }
+                }
+
+                const hydratedTimeline = data.version === "10.0" ? hydrateAudioTimelineFromFile(data.audioTimeline) : null;
+                if (hydratedTimeline?.clips?.some((clip) => clip.fileBlob)) {
+                    restoreAudioTimelineProject(hydratedTimeline).then((restored) => {
+                        if (!restored) applyAllLoadedSettings();
+                    });
+                    alert("오디오 포함 프로젝트 파일(.jjd)을 불러오는 중입니다.");
+                    return;
                 }
 
                 // Sync everything!
@@ -3665,7 +4121,7 @@ async function triggerAutosave() {
         const settings = serializeEffectorSettings();
         
         // Overwrites the existing AutoSave project entry
-        await saveProject(defaultName, currentAudioFileBlob, currentAudioFileName, activeStemIds, audioState, settings);
+        await saveProject(defaultName, currentAudioFileBlob, currentAudioFileName, activeStemIds, audioState, settings, serializeAudioTimelineProject());
         await updateProjectDropdown();
 
         // Animate the autosave icon for feedback

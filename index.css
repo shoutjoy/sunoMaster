@@ -718,6 +718,54 @@ body.light-mode .eq-panel .eq-slider-shell::before { border-color: #cbd5e1; back
 body.light-mode .eq-band-frequency { color: #475569; }
 body.light-mode .eq-panel #post-eq-effects > div { border-color: #cbd5e1 !important; background: #f8fafc !important; }
 
+.global-fold-btn {
+    border: 1px solid rgba(71, 85, 105, 0.86);
+}
+.global-icon-btn {
+    width: 2.6rem;
+    height: 2.6rem;
+    padding: 0;
+    font-size: 0.95rem;
+}
+.global-fold-btn:first-child {
+    border-color: rgba(14, 165, 233, 0.42);
+}
+.global-fold-btn:nth-child(2) {
+    border-color: rgba(99, 102, 241, 0.48);
+}
+.current-track-title {
+    display: none;
+}
+body.light-mode .current-track-title {
+    color: #1d4ed8;
+    text-shadow: none;
+}
+.transport-track-nav {
+    display: none;
+    gap: 0.35rem;
+    align-items: center;
+    margin: -1.45rem 2.15rem 0.55rem 0;
+    min-height: 1.75rem;
+}
+.transport-track-nav.has-tracks { display: flex; }
+.transport-track-btn {
+    display: inline-grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    border-radius: 0.45rem;
+    background: #111827;
+    color: #67e8f9;
+    font-size: 0.72rem;
+}
+.transport-track-btn:hover:not(:disabled) {
+    border-color: #22d3ee;
+    background: rgba(8, 145, 178, 0.24);
+}
+.transport-track-btn:disabled { display: none; }
+
 /* Master saturation */
 .saturation-panel {
     overflow: hidden;

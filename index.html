@@ -12,8 +12,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260628-39">
-    <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-8">
+    <link rel="stylesheet" href="index.css?v=20260628-43">
+    <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-14">
 </head>
 
 <body class="text-gray-200 min-h-screen p-3 md:p-6 font-sans select-none">
@@ -33,14 +33,14 @@
             <div class="relative w-full sm:w-auto space-y-2">
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto">
                     <button id="collapse-all-btn" type="button"
-                        class="global-fold-btn bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1"
-                        title="모든 패널 접기">
-                        <i class="fa-solid fa-angles-up"></i> 모두 접기
+                        class="global-fold-btn global-icon-btn bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-semibold transition flex items-center justify-center"
+                        title="모든 패널 접기" aria-label="모든 패널 접기">
+                        <i class="fa-solid fa-angles-up"></i>
                     </button>
                     <button id="expand-all-btn" type="button"
-                        class="global-fold-btn bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1"
-                        title="모든 패널 펼치기">
-                        <i class="fa-solid fa-angles-down"></i> 모두 펼치기
+                        class="global-fold-btn global-icon-btn bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-semibold transition flex items-center justify-center"
+                        title="모든 패널 펼치기" aria-label="모든 패널 펼치기">
+                        <i class="fa-solid fa-angles-down"></i>
                     </button>
                     <button id="theme-toggle" type="button" aria-pressed="false"
                         class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-1">
@@ -129,7 +129,7 @@
 
                 <!-- AUDIO UPLOAD & BACKGROUND ANALYSIS -->
                 <section id="audio-upload-panel" class="audio-upload-panel" aria-labelledby="audio-upload-title">
-                    <input type="file" id="audio-upload" class="audio-file-input" accept="audio/*,.wav,.mp3,.flac,.m4a,.aac,.ogg,.opus,.aif,.aiff" aria-label="음원 파일 선택">
+                    <input type="file" id="audio-upload" class="audio-file-input" accept="audio/*,.wav,.mp3,.flac,.m4a,.aac,.ogg,.opus,.aif,.aiff" multiple aria-label="음원 파일 선택">
                     <button id="audio-drop-zone" class="audio-drop-zone" type="button">
                         <span class="audio-drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
                         <span class="min-w-0 text-left">
@@ -567,28 +567,6 @@
                         </div>
                     </div>
 
-                    <div id="audio-timeline-panel" class="audio-timeline-panel">
-                        <button id="audio-timeline-header" type="button" class="audio-timeline-header"
-                            aria-expanded="true" aria-controls="audio-timeline-content">
-                            <span><i class="fa-solid fa-music"></i> 오디오 타임라인</span>
-                            <span class="audio-timeline-hint">중복 업로드 시 여기에 순서대로 추가</span>
-                            <span id="audio-timeline-summary">0 clips</span>
-                            <i id="audio-timeline-chevron" class="fa-solid fa-chevron-up"></i>
-                        </button>
-                        <div id="audio-timeline-content" class="audio-timeline-content">
-                            <div class="audio-timeline-help">
-                                <span>순차 재생 · 새 음원 업로드 시 “오디오 타임라인에 추가”를 선택하면 다음 순서로 재생됩니다.</span>
-                                <span id="audio-timeline-track-count">0개 트랙</span>
-                            </div>
-                            <div id="audio-timeline-strip" class="audio-timeline-strip">
-                                <div class="audio-timeline-empty">
-                                    <i class="fa-solid fa-plus"></i>
-                                    <span>음원을 업로드하면 이곳에 오디오 타임라인이 생성됩니다.</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div id="master-limiter-panel" class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
                             <span class="text-lime-400 text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i>
@@ -780,6 +758,14 @@
                             <button id="player-float-toggle" type="button" class="player-float-toggle" aria-pressed="false" title="플레이바 플로팅" aria-label="플레이바 플로팅">
                                 <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
                             </button>
+                            <div class="transport-track-nav" aria-label="곡 이동">
+                                <button id="track-prev-btn" type="button" class="transport-track-btn" data-audio-transport disabled title="이전 곡" aria-label="이전 곡">
+                                    <i class="fa-solid fa-backward-step"></i>
+                                </button>
+                                <button id="track-next-btn" type="button" class="transport-track-btn" data-audio-transport disabled title="다음 곡" aria-label="다음 곡">
+                                    <i class="fa-solid fa-forward-step"></i>
+                                </button>
+                            </div>
                             <label for="pan-control"><span>Pan</span><output id="pan-val">C</output></label>
                             <div class="spatial-control-row">
                                 <button type="button" data-spatial-target="pan-control" data-spatial-delta="-1" aria-label="Pan 감소">−</button>
@@ -1008,6 +994,36 @@
 
                 </section>
 
+                <div id="audio-timeline-panel" class="audio-timeline-panel">
+                    <button id="audio-timeline-header" type="button" class="audio-timeline-header"
+                        aria-expanded="true" aria-controls="audio-timeline-content">
+                        <span><i class="fa-solid fa-music"></i> 오디오 타임라인</span>
+                        <span class="audio-timeline-hint">각 슬라이드 = 한 곡의 마스터링 세팅</span>
+                        <span id="audio-timeline-summary">0 clips</span>
+                        <i id="audio-timeline-chevron" class="fa-solid fa-chevron-up"></i>
+                    </button>
+                    <div id="audio-timeline-content" class="audio-timeline-content">
+                        <div class="audio-timeline-help">
+                            <span>순차 재생 · 각 곡은 볼륨/Fade/마스터링 세팅을 개별 저장합니다.</span>
+                            <span id="audio-timeline-track-count">0개 트랙</span>
+                        </div>
+                        <div class="audio-timeline-gap-control" aria-label="곡 사이 무음 간격">
+                            <span><b>곡 사이 빈 공간</b><em id="audio-timeline-gap-val">2000 ms</em></span>
+                            <button type="button" id="audio-timeline-gap-minus" aria-label="곡 사이 간격 줄이기">−</button>
+                            <input id="audio-timeline-gap" type="range" min="0" max="10000" step="10" value="2000">
+                            <button type="button" id="audio-timeline-gap-plus" aria-label="곡 사이 간격 늘리기">+</button>
+                            <button type="button" id="audio-timeline-gap-apply-all" class="audio-timeline-gap-apply-all"
+                                aria-label="모든 곡 사이 간격을 같은 값으로 적용">ALL</button>
+                        </div>
+                        <div id="audio-timeline-strip" class="audio-timeline-strip">
+                                <div class="audio-timeline-empty" data-timeline-action="appendUpload" role="button" tabindex="0" aria-label="오디오 타임라인에 음원 추가">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>음원을 업로드하면 이곳에 오디오 타임라인이 생성됩니다.</span>
+                                </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- AI 100-Preset Mastering Library -->
                 <div id="ai-100-preset-section" class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-2 shadow-xl" hidden>
                     <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -1021,12 +1037,12 @@
     </div>
 
     <script src="effector/EQ/eq.js?v=20260628-10"></script>
-    <script src="effector/reverb/reverb.js?v=20260628-19"></script>
+    <script src="effector/reverb/reverb.js?v=20260628-20"></script>
     <script src="effector/Compressor/compressor.js?v=20260628-20"></script>
     <script src="effector/limitor/limiter.js?v=20260628-8"></script>
     <script src="effector/Saturation/saturation.js?v=20260628-5"></script>
-    <script src="UploadeFiles/audio-upload.js?v=20260628-7"></script>
-    <script src="index.js?v=20260628-44"></script>
+    <script src="UploadeFiles/audio-upload.js?v=20260628-8"></script>
+    <script src="index.js?v=20260628-51"></script>
 </body>
 
 </html>

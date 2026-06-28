@@ -125,16 +125,17 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
         }
     };
 
-    const getDroppedFile = (dataTransfer) => {
-        const directFile = Array.from(dataTransfer?.files || []).find(Boolean);
-        if (directFile) return directFile;
+    const getDroppedFiles = (dataTransfer) => {
+        const directFiles = Array.from(dataTransfer?.files || []).filter(Boolean);
+        if (directFiles.length) return directFiles;
 
+        const files = [];
         for (const item of Array.from(dataTransfer?.items || [])) {
             if (item.kind !== 'file') continue;
             const file = item.getAsFile?.();
-            if (file) return file;
+            if (file) files.push(file);
         }
-        return null;
+        return files;
     };
 
     const isDropZoneEvent = (event) => {
@@ -142,7 +143,7 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
         return path.includes(dropZone) || Boolean(event.target && dropZone.contains(event.target));
     };
 
-    const processFile = async (file) => {
+    const processFile = async (file, batchIndex = 0, batchTotal = 1) => {
         if (!file) return;
         if (!file.type.startsWith('audio/') && !/\.(wav|mp3|flac|m4a|aac|ogg|opus|aiff?)$/i.test(file.name)) {
             onError?.(new Error('지원되는 오디오 파일을 선택해 주세요.'));
@@ -191,7 +192,7 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
                 }
             });
             if (jobId !== currentJob) return;
-            onDecoded?.({ file, buffer });
+            await onDecoded?.({ file, buffer, batchIndex, batchTotal });
             setStatus('running', '로드 완료 · 분석 중');
             try {
                 activeWorker = runAnalysis(buffer, file, jobId, (id) => id === currentJob);
@@ -211,8 +212,13 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
     };
 
     input.addEventListener('change', (event) => {
-        const file = event.currentTarget?.files?.[0] || event.target?.files?.[0];
-        void processFile(file);
+        const files = Array.from(event.currentTarget?.files || event.target?.files || []).filter(Boolean);
+        if (!files.length) return;
+        void (async () => {
+            for (let index = 0; index < files.length; index += 1) {
+                await processFile(files[index], index, files.length);
+            }
+        })();
     });
     dropZone.addEventListener('click', (event) => {
         event.preventDefault();
@@ -249,10 +255,14 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
         event.preventDefault();
         event.stopPropagation();
         dropZone.classList.remove('is-dragging');
-        const file = getDroppedFile(event.dataTransfer);
-        if (file) {
+        const files = getDroppedFiles(event.dataTransfer);
+        if (files.length) {
             dropZone.dataset.dropState = 'received';
-            void processFile(file);
+            void (async () => {
+                for (let index = 0; index < files.length; index += 1) {
+                    await processFile(files[index], index, files.length);
+                }
+            })();
             return;
         }
 
