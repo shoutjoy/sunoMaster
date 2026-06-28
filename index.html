@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260629-3">
+    <link rel="stylesheet" href="index.css?v=20260629-7">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-14">
 </head>
 
@@ -128,7 +128,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-            <div class="lg:col-span-4 space-y-5">
+            <div class="sidebar-workbench-column lg:col-span-4 space-y-5">
 
                 <!-- AUDIO UPLOAD & BACKGROUND ANALYSIS -->
                 <section id="audio-upload-panel" class="audio-upload-panel" aria-labelledby="audio-upload-title">
@@ -184,7 +184,7 @@
                 </section>
 
                 <!-- PROJECT MANAGEMENT DASHBOARD -->
-                <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
+                <div id="project-manager-panel" class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
                     <div id="project-header"
                         class="flex items-center justify-between border-b border-gray-800 pb-2 cursor-pointer select-none">
                         <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -656,7 +656,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="limiter-advanced-content is-collapsed" aria-label="리미터 고급 분석">
+                        <div id="limiter-advanced-content" class="limiter-advanced-content is-collapsed" aria-label="리미터 고급 분석">
                             <div class="limiter-advanced-summary">
                                 <div><small>TRUE PEAK</small><strong id="limiter-true-peak">-∞ dBTP</strong></div>
                                 <div><small>OUTPUT CEILING</small><strong id="limiter-ceiling-now">0.0 dBTP</strong></div>
@@ -712,68 +712,13 @@
                             class="w-full h-1.5 bg-gray-800 rounded appearance-none accent-amber-500">
                     </div>
 
-                    <section id="master-spread-panel" class="spread-panel">
-                        <div class="spread-panel-header">
-                            <div>
-                                <h3><i class="fa-solid fa-arrows-left-right-to-line"></i> SPREAD</h3>
-                                <p>STEREO WIDTH</p>
-                            </div>
-                            <div class="spread-header-actions">
-                                <select id="spread-preset" class="spread-preset" aria-label="Spread preset">
-                                    <option value="default">Default</option>
-                                </select>
-                                <button id="spread-toggle" type="button" aria-pressed="false">OUT</button>
-                                <button id="spread-collapse-btn" type="button" aria-expanded="false" aria-controls="spread-collapse-content" title="접기/펼치기"><i id="spread-collapse-icon" class="fa-solid fa-chevron-down"></i></button>
-                            </div>
-                        </div>
-                        <div id="spread-collapse-content" class="spread-content is-collapsed">
-                            <div class="spread-stage" aria-label="Spread stereo field visualizer">
-                                <span class="spread-speaker spread-speaker-left">L</span>
-                                <span class="spread-speaker spread-speaker-right">R</span>
-                                <div class="spread-arc"></div>
-                                <div id="spread-left-beam" class="spread-beam spread-beam-left"></div>
-                                <div id="spread-right-beam" class="spread-beam spread-beam-right"></div>
-                                <div id="spread-center-dot" class="spread-center-dot"></div>
-                                <div class="spread-main-readout"><span>SPREAD</span><strong id="spread-main-value">45%</strong></div>
-                            </div>
-                            <div class="spread-control-grid">
-                                <label class="spread-control">
-                                    <span>SPREAD <b id="spread-width-val">45%</b></span>
-                                    <input id="spread-width" class="spread-slider" type="range" min="0" max="100" step="1" value="45">
-                                </label>
-                                <label class="spread-control">
-                                    <span>CENTER <b id="spread-center-val">0.0 dB</b></span>
-                                    <input id="spread-center" class="spread-slider" type="range" min="-12" max="6" step="0.1" value="0">
-                                </label>
-                                <label class="spread-control">
-                                    <span>COPY LEVEL <b id="spread-side-val">-9.0 dB</b></span>
-                                    <input id="spread-side" class="spread-slider" type="range" min="-24" max="0" step="0.1" value="-9">
-                                </label>
-                                <label class="spread-control">
-                                    <span>LOW CUT <b id="spread-lowcut-val">160 Hz</b></span>
-                                    <input id="spread-lowcut" class="spread-slider" type="range" min="60" max="400" step="1" value="160">
-                                </label>
-                            </div>
-                            <div class="spread-meter-row">
-                                <div class="spread-signal-flow">
-                                    <span>INPUT</span><i></i><b>COPY L/R</b><b>WIDTH</b><b>LEVEL</b>
-                                </div>
-                                <div class="spread-correlation">
-                                    <span>CORRELATION / MONO CHECK</span>
-                                    <div class="spread-correlation-track"><i id="spread-correlation-fill"></i><em></em></div>
-                                    <strong id="spread-correlation-val">0.58</strong>
-                                </div>
-                            </div>
-                            <p id="spread-warning" class="spread-warning"></p>
-                        </div>
-                    </section>
                 </div>
 
             </div>
 
-            <div class="lg:col-span-8 space-y-5">
+            <div class="main-workbench-column lg:col-span-8 space-y-5">
                 <!-- AI Audio Waveform Analyzer -->
-                <div class="bg-[#090d16] p-5 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
+                <div id="waveform-analyzer-panel" class="bg-[#090d16] p-5 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
                     <div class="flex justify-between items-center border-b border-gray-800 pb-2">
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-waveform text-cyan-400 animate-pulse"></i> AI Audio Waveform Analyzer
@@ -1083,6 +1028,62 @@
 
                 </section>
 
+                <section id="master-spread-panel" class="spread-panel">
+                    <div class="spread-panel-header">
+                        <div>
+                            <h3><i class="fa-solid fa-arrows-left-right-to-line"></i> SPREAD</h3>
+                            <p>STEREO WIDTH</p>
+                        </div>
+                        <div class="spread-header-actions">
+                            <select id="spread-preset" class="spread-preset" aria-label="Spread preset">
+                                <option value="default">Default</option>
+                            </select>
+                            <button id="spread-toggle" type="button" aria-pressed="false">OUT</button>
+                            <button id="spread-collapse-btn" type="button" aria-expanded="false" aria-controls="spread-collapse-content" title="접기/펼치기"><i id="spread-collapse-icon" class="fa-solid fa-chevron-down"></i></button>
+                        </div>
+                    </div>
+                    <div id="spread-collapse-content" class="spread-content is-collapsed">
+                        <div class="spread-stage" aria-label="Spread stereo field visualizer">
+                            <span class="spread-speaker spread-speaker-left">L</span>
+                            <span class="spread-speaker spread-speaker-right">R</span>
+                            <div class="spread-arc"></div>
+                            <div id="spread-left-beam" class="spread-beam spread-beam-left"></div>
+                            <div id="spread-right-beam" class="spread-beam spread-beam-right"></div>
+                            <div id="spread-center-dot" class="spread-center-dot"></div>
+                            <div class="spread-main-readout"><span>SPREAD</span><strong id="spread-main-value">45%</strong></div>
+                        </div>
+                        <div class="spread-control-grid">
+                            <label class="spread-control">
+                                <span>SPREAD <b id="spread-width-val">45%</b></span>
+                                <input id="spread-width" class="spread-slider" type="range" min="0" max="100" step="1" value="45">
+                            </label>
+                            <label class="spread-control">
+                                <span>CENTER <b id="spread-center-val">0.0 dB</b></span>
+                                <input id="spread-center" class="spread-slider" type="range" min="-12" max="6" step="0.1" value="0">
+                            </label>
+                            <label class="spread-control">
+                                <span>COPY LEVEL <b id="spread-side-val">-9.0 dB</b></span>
+                                <input id="spread-side" class="spread-slider" type="range" min="-24" max="0" step="0.1" value="-9">
+                            </label>
+                            <label class="spread-control">
+                                <span>LOW CUT <b id="spread-lowcut-val">160 Hz</b></span>
+                                <input id="spread-lowcut" class="spread-slider" type="range" min="60" max="400" step="1" value="160">
+                            </label>
+                        </div>
+                        <div class="spread-meter-row">
+                            <div class="spread-signal-flow">
+                                <span>INPUT</span><i></i><b>COPY L/R</b><b>WIDTH</b><b>LEVEL</b>
+                            </div>
+                            <div class="spread-correlation">
+                                <span>CORRELATION / MONO CHECK</span>
+                                <div class="spread-correlation-track"><i id="spread-correlation-fill"></i><em></em></div>
+                                <strong id="spread-correlation-val">0.58</strong>
+                            </div>
+                        </div>
+                        <p id="spread-warning" class="spread-warning"></p>
+                    </div>
+                </section>
+
                 <div id="audio-timeline-panel" class="audio-timeline-panel">
                     <button id="audio-timeline-header" type="button" class="audio-timeline-header"
                         aria-expanded="false" aria-controls="audio-timeline-content">
@@ -1132,7 +1133,7 @@
     <script src="effector/Saturation/saturation.js?v=20260628-5"></script>
     <script src="effector/spreaddp/spread.js?v=20260629-1"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260628-8"></script>
-    <script src="index.js?v=20260629-2"></script>
+    <script src="index.js?v=20260629-3"></script>
 </body>
 
 </html>

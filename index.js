@@ -637,6 +637,36 @@ function setupMasterEffectPanels() {
         const advancedContent = panelId === 'master-limiter-panel'
             ? content.querySelector('.limiter-advanced-content')
             : null;
+        if (advancedContent) {
+            const advancedToggle = document.createElement('button');
+            advancedToggle.type = 'button';
+            advancedToggle.className = 'effect-collapse-btn limiter-advanced-toggle-btn';
+            advancedToggle.setAttribute('aria-controls', 'limiter-advanced-content');
+            advancedToggle.setAttribute('aria-expanded', String(!advancedContent.classList.contains('is-collapsed')));
+            advancedToggle.setAttribute('aria-label', '리미터 하단 고급 기능 펼치기');
+            advancedToggle.title = '리미터 하단 고급 기능';
+            advancedToggle.innerHTML = '<i class="fa-solid fa-chart-line"></i>';
+            advancedToggle.onclick = () => {
+                if (content.classList.contains('is-collapsed')) {
+                    content.classList.remove('is-collapsed');
+                    const mainCollapse = panel.querySelector('.effect-collapse-btn:not(.limiter-advanced-toggle-btn)');
+                    const mainIcon = mainCollapse?.querySelector('i');
+                    mainCollapse?.setAttribute('aria-expanded', 'true');
+                    mainCollapse?.setAttribute('aria-label', '패널 접기');
+                    if (mainIcon) mainIcon.className = 'fa-solid fa-chevron-up';
+                }
+                const collapsed = !advancedContent.classList.contains('is-collapsed');
+                advancedContent.classList.toggle('is-collapsed', collapsed);
+                advancedToggle.setAttribute('aria-expanded', String(!collapsed));
+                advancedToggle.setAttribute('aria-label', collapsed ? '리미터 하단 고급 기능 펼치기' : '리미터 하단 고급 기능 접기');
+                advancedToggle.classList.toggle('is-active', !collapsed);
+                window.setTimeout(() => {
+                    handleResize();
+                    limiter.updateLimiterVisualizers?.();
+                }, 0);
+            };
+            actions.appendChild(advancedToggle);
+        }
         const collapseTarget = content;
         const startsCollapsed = collapseTarget.classList.contains('is-collapsed');
         collapse.setAttribute('aria-expanded', String(!startsCollapsed));
@@ -737,9 +767,17 @@ function setAllPanelsCollapsed(collapsed) {
     );
     document.querySelectorAll('.main-effect-panel .effect-panel-content').forEach((content) => {
         const panel = content.closest('.main-effect-panel');
-        const button = panel?.querySelector('.effect-collapse-btn');
+        const button = panel?.querySelector('.effect-collapse-btn:not(.limiter-advanced-toggle-btn)');
         const icon = button?.querySelector('i');
         setPanelCollapsed(content, collapsed, { hiddenClass: 'is-collapsed', button, icon });
+        const advancedContent = panel?.querySelector('.limiter-advanced-content');
+        const advancedButton = panel?.querySelector('.limiter-advanced-toggle-btn');
+        if (advancedContent && advancedButton) {
+            advancedContent.classList.toggle('is-collapsed', collapsed);
+            advancedButton.setAttribute('aria-expanded', String(!collapsed));
+            advancedButton.setAttribute('aria-label', collapsed ? '리미터 하단 고급 기능 펼치기' : '리미터 하단 고급 기능 접기');
+            advancedButton.classList.toggle('is-active', !collapsed);
+        }
     });
     if (!collapsed) {
         window.setTimeout(() => {
