@@ -50,6 +50,7 @@ const stemConsoleSection = document.getElementById('stem-console-section');
 const spectrumBandCountInput = document.getElementById('spectrum-band-count');
 const spectrumBarsBtn = document.getElementById('spectrum-bars-btn');
 const spectrumWaveBtn = document.getElementById('spectrum-wave-btn');
+const spectrumComboBtn = document.getElementById('spectrum-combo-btn');
 const globalPlayerShell = document.getElementById('global-player-shell');
 const PLAYER_MODE_STORAGE_KEY = 'jd-player-display-mode';
 const EXPORT_PREFIX_STORAGE_KEY = 'jd-export-filename-prefix';
@@ -160,12 +161,16 @@ function applySpectrumBandCount(value, persist = true) {
 }
 
 function applySpectrumViewMode(mode, persist = true) {
-    spectrumViewMode = mode === 'wave' ? 'wave' : 'bars';
+    spectrumViewMode = mode === 'wave' || mode === 'combo' ? mode : 'bars';
     const isWave = spectrumViewMode === 'wave';
-    spectrumBarsBtn?.classList.toggle('is-active', !isWave);
+    const isCombo = spectrumViewMode === 'combo';
+    const isBars = spectrumViewMode === 'bars';
+    spectrumBarsBtn?.classList.toggle('is-active', isBars);
     spectrumWaveBtn?.classList.toggle('is-active', isWave);
-    spectrumBarsBtn?.setAttribute('aria-pressed', String(!isWave));
+    spectrumComboBtn?.classList.toggle('is-active', isCombo);
+    spectrumBarsBtn?.setAttribute('aria-pressed', String(isBars));
     spectrumWaveBtn?.setAttribute('aria-pressed', String(isWave));
+    spectrumComboBtn?.setAttribute('aria-pressed', String(isCombo));
     if (persist) {
         try { localStorage.setItem(SPECTRUM_VIEW_MODE_STORAGE_KEY, spectrumViewMode); } catch (error) {}
     }
@@ -188,8 +193,9 @@ if (spectrumBandCountInput) {
 }
 if (spectrumBarsBtn) spectrumBarsBtn.onclick = () => applySpectrumViewMode('bars');
 if (spectrumWaveBtn) spectrumWaveBtn.onclick = () => applySpectrumViewMode('wave');
+if (spectrumComboBtn) spectrumComboBtn.onclick = () => applySpectrumViewMode('combo');
 
-const eqLabels = ["31.5", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
+const eqLabels = ["20", "31.5", "50", "80", "125", "200", "315", "500", "800", "1k", "1.25k", "2k", "3.15k", "4k", "5k", "6.3k", "8k", "10k", "12.5k", "16k"];
 
 const stemRegistry = [
     { id: "s1", name: "CH 1: Kick (드럼 저역 타격음)", freq: 60, type: "lowshelf", color: "text-amber-400", accent: "accent-amber-500" },
@@ -215,22 +221,30 @@ const stemRegistry = [
 ];
 
 const presetNames = [
-    "Analog Warmth", "Nordic Cool", "Silk Velvet", "Airy Horizon", "Vintage Gold", "Subtle Intimacy", "Brilliant Glow", "Dark Room", "Crisp Winter", "Summer Haze", 
-    "Neon Nostalgia", "Misty Morning", "Golden Hour", "Midnight Melancholy", "Cozy Tube", "Tape Saturation", "Ethereal Dream", "Cosmic Breath", "Heavy Pressure", "Crystal Clear",
-    "Lo-Fi Nostalgia", "Vinyl Dust", "Plush Vibe", "Washed Out", "Overdrive Aggressive",
-    "K-Pop Target", "Dance Pop Energy", "Modern R&B Clean", "Neo Soul Smooth", "Club Pop Bounce", "Vocal Presence", "Shining Top", "Hip-Hop Heavy", "Boom Bap 90s", "UK Drill Dark", 
-    "Trap Gold", "Lo-Fi Lounge", "Synthwave 80s", "Chillhop Vibe", "Retro Funk", "Bedroom Pop", "Acoustic Pop Warm", "Gospel Air", "Disco Groove", "Latin Urban",
-    "Indie Pop Sweet", "Future Soul", "Afrobeats Pulse", "Melodic Rap", "West Coast Glide",
-    "Modern Rock Edge", "Heavy Metal Punch", "Hard Rock Solid", "Punk Raw Power", "Alternative Grit", "Grunge Mud", "Indie Stadium", "Progressive Wide", "Thrash Core", "Deathcore Low",
-    "Nu-Metal Thick", "Classic Rock Air", "Blues Crunch", "Psychedelic Space", "Math Rock Clean", "Garage Raw", "Stoner Heavy", "Gothic Dark", "Pop Punk Bright", "Post-Rock Sky",
-    "Symphonic Metal", "Djent Lowend", "Sludge Thick", "Southern Warm", "Vintage British",
-    "EDM Festival", "Club House Bass", "Deep Techno Sub", "Future Bass Sparkle", "Dubstep In-Your-Face", "Drum & Bass Speed", "Psytrance Drive", "Hardstyle Hardcore", "Minimal Tech Peak", "Nu-Disco High",
-    "Cinematic Wide", "Orchestral Hall", "Epic Trailer", "Deep Ambient Space", "Drone Isolation", "Space Echo", "Telephone Retro", "Radio Lo-fi Filter", "Megaphone Cut", "Stadium Live Reverb",
-    "Cyberpunk Industrial", "Glitch Glitch", "Trip-Hop Moody", "Chillout Wave", "Mastering Flat Line"
+    "Low Shelf +0.3", "Low Shelf +0.5", "Low Shelf -0.3", "Low Shelf -0.5", "Sub Clean -0.4",
+    "Kick Weight +0.4", "Mud Trim -0.4", "Mud Trim -0.7", "Low-Mid Body +0.3", "Low-Mid Body -0.3",
+    "Box Trim -0.4", "Box Trim -0.6", "Warm Tilt +0.4", "Cool Tilt -0.4", "Neutral Polish A",
+    "Neutral Polish B", "Center Clarity +0.3", "Vocal Pocket +0.4", "Vocal Harsh -0.3", "Vocal Air +0.5",
+    "Presence +0.3", "Presence +0.5", "Presence Trim -0.3", "Presence Trim -0.5", "Sibilance Soft -0.4",
+    "Air Shelf +0.3", "Air Shelf +0.6", "Air Shelf -0.3", "Top Smooth -0.4", "Top Smooth -0.6",
+    "Stereo Master Flat+", "Streaming Soft A", "Streaming Soft B", "Streaming Bright A", "Streaming Warm A",
+    "Pop Micro Lift", "Pop Vocal Seat", "Pop Low Control", "Pop Air Control", "Pop Dense Trim",
+    "Hip-Hop Sub Tight", "Hip-Hop Vocal Clear", "Hip-Hop Hi-Hat Soft", "Hip-Hop Low-Mid Trim", "Hip-Hop Air Small",
+    "Rock Body Small", "Rock Edge Tame", "Rock Presence Small", "Rock Low Tight", "Rock Top Smooth",
+    "Metal Low Tight", "Metal Bite Trim", "Metal Air Small", "Metal Mud Cut", "Metal Presence Seat",
+    "Acoustic Body +0.3", "Acoustic Boom -0.4", "Acoustic String Air", "Acoustic Pick Soft", "Acoustic Natural",
+    "Piano Body +0.3", "Piano Box -0.4", "Piano Air +0.4", "Piano Bright Tame", "Piano Warm Micro",
+    "EDM Sub Guard", "EDM Kick Seat", "EDM Top Smooth", "EDM Air +0.5", "EDM Mid Clean",
+    "R&B Warm Micro", "R&B Vocal Silk", "R&B Low Tight", "R&B Air Soft", "R&B Presence Seat",
+    "Jazz Natural A", "Jazz Natural B", "Jazz Low Clean", "Jazz Air Small", "Jazz Harsh Trim",
+    "Cinematic Low +0.4", "Cinematic Mud -0.3", "Cinematic Air +0.5", "Cinematic Smooth Top", "Cinematic Neutral",
+    "Podcast Body +0.3", "Podcast Mud -0.5", "Podcast Presence +0.4", "Podcast Sibilance -0.5", "Podcast Air -0.3",
+    "Vinyl Low Trim", "Tape Soft Top", "Tube Warm Small", "Clean Translation", "Mono Safe Trim",
+    "Car Check Low", "Earbud Clarity", "Laptop Low-Mid Trim", "Club Low Guard", "Master Final Polish"
 ];
 
 const audioState = {
-    eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    eq: new Array(20).fill(0),
     eqEnabled: false,
     stems: {},
     stemsEnabled: false,
@@ -300,6 +314,9 @@ let isUserSeeking = false;
 let activeStemIds = [];
 let waveformPeaks = [];
 let waveformProgress = 0;
+let waveformLoadingState = null;
+let waveformLoadingFrame = 0;
+let waveformMessageTimer = 0;
 let currentAudioFileBlob = null;
 let currentAudioFileName = "";
 
@@ -391,6 +408,8 @@ const levelMeterLeft = document.getElementById('level-meter-left');
 const levelMeterRight = document.getElementById('level-meter-right');
 const canvas = document.getElementById('visualizer');
 const ctx = canvas.getContext('2d');
+const spectrumAnalyzerPanel = document.getElementById('spectrum-analyzer-panel');
+const spectrumHeightResizer = document.getElementById('spectrum-height-resizer');
 const detectorStatus = document.getElementById('detector-status');
 const clipLed = document.getElementById('clip-led');
 const lufsBar = document.getElementById('lufs-bar');
@@ -398,6 +417,7 @@ const lufsText = document.getElementById('lufs-text');
 const waveformCanvas = document.getElementById('audio-waveform');
 const waveformCtx = waveformCanvas ? waveformCanvas.getContext('2d') : null;
 const waveformTime = document.getElementById('waveform-time');
+const waveformLoadMessage = document.getElementById('waveform-load-message');
 const compGrBar = document.getElementById('comp-gr-bar');
 const compGrVal = document.getElementById('comp-gr-val');
 
@@ -472,16 +492,28 @@ function setupMasterEffectPanels() {
         const collapse = document.createElement('button');
         collapse.type = 'button';
         collapse.className = 'effect-collapse-btn';
-        collapse.setAttribute('aria-expanded', 'true');
-        collapse.setAttribute('aria-label', '패널 접기');
-        collapse.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+        const advancedContent = panelId === 'master-limiter-panel'
+            ? content.querySelector('.limiter-advanced-content')
+            : null;
+        const collapseTarget = advancedContent || content;
+        const startsCollapsed = collapseTarget.classList.contains('is-collapsed');
+        collapse.setAttribute('aria-expanded', String(!startsCollapsed));
+        collapse.setAttribute('aria-label', advancedContent ? '리미터 고급 분석 펼치기' : '패널 접기');
+        collapse.innerHTML = `<i class="fa-solid fa-chevron-${startsCollapsed ? 'down' : 'up'}"></i>`;
         collapse.onclick = () => {
-            const collapsed = !content.classList.contains('is-collapsed');
-            content.classList.toggle('is-collapsed', collapsed);
+            const collapsed = !collapseTarget.classList.contains('is-collapsed');
+            collapseTarget.classList.toggle('is-collapsed', collapsed);
             collapse.setAttribute('aria-expanded', String(!collapsed));
-            collapse.setAttribute('aria-label', collapsed ? '패널 펼치기' : '패널 접기');
+            collapse.setAttribute('aria-label', advancedContent
+                ? (collapsed ? '리미터 고급 분석 펼치기' : '리미터 고급 분석 접기')
+                : (collapsed ? '패널 펼치기' : '패널 접기'));
             collapse.innerHTML = `<i class="fa-solid fa-chevron-${collapsed ? 'down' : 'up'}"></i>`;
-            if (!collapsed) window.setTimeout(handleResize, 0);
+            if (!collapsed) {
+                window.setTimeout(() => {
+                    handleResize();
+                    if (advancedContent) limiter.updateLimiterVisualizers?.();
+                }, 0);
+            }
         };
         actions.appendChild(collapse);
         header.appendChild(actions);
@@ -515,6 +547,7 @@ function setupResizableEffectGraphs() {
         const redraw = () => {
             reverb.updateReverbVisualizers?.();
             compressor.drawCurve();
+            eq.drawEQCanvas?.();
         };
         const finish = (event) => {
             if (!resizer.classList.contains('is-resizing')) return;
@@ -561,12 +594,115 @@ const loudnessHistoryCard = loudnessHistory?.closest('.loudness-history-card');
 const loudnessResetBtn = document.getElementById('loudness-reset-btn');
 const loudnessCollapseBtn = document.getElementById('loudness-collapse-btn');
 const loudnessPanelContent = document.getElementById('loudness-panel-content');
+const streamingLimiterSync = document.getElementById('streaming-limiter-sync');
+const streamingLimiterOutput = document.getElementById('streaming-limiter-output');
+const streamingLimiterStatus = document.getElementById('streaming-limiter-status');
+const streamingLimiterFit = document.getElementById('streaming-limiter-fit');
 let loudnessSamples = [];
 let loudnessChartPoints = [];
 let loudnessTruePeak = 0;
 let loudnessLastSampleAt = 0;
 let loudnessEnergySum = 0;
+let streamingFitHoldUntil = 0;
+let streamingFitAppliedOutput = null;
+let latestIntegratedLufs = NaN;
 const LOUDNESS_HISTORY_HEIGHT_KEY = 'jd-loudness-history-height';
+
+function updateStreamingLimiterOutput(limiterState = audioState.limiter) {
+    const outputGain = Number(limiterState?.outputGain);
+    const enabled = Boolean(limiterState?.enabled);
+    if (streamingLimiterOutput) {
+        streamingLimiterOutput.innerText = `${Number.isFinite(outputGain) ? outputGain.toFixed(1) : '0.0'} dB`;
+    }
+    if (streamingLimiterStatus) streamingLimiterStatus.innerText = enabled ? 'SYNC' : 'OUT';
+    streamingLimiterSync?.classList.toggle('is-active', enabled);
+    streamingLimiterSync?.setAttribute(
+        'aria-label',
+        `Limiter output ${Number.isFinite(outputGain) ? outputGain.toFixed(1) : '0.0'} decibels, ${enabled ? 'synchronized' : 'bypassed'}`
+    );
+}
+
+function getLimiterOutputBounds() {
+    const input = document.getElementById('limiter-output');
+    return {
+        min: Number(input?.min ?? -12),
+        max: Number(input?.max ?? 6)
+    };
+}
+
+function clampLimiterOutput(value) {
+    const { min, max } = getLimiterOutputBounds();
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(min, Math.min(max, Math.round(numeric * 10) / 10));
+}
+
+function applyLimiterOutputFit(targetOutput) {
+    const fittedOutput = clampLimiterOutput(targetOutput);
+    audioState.limiter.enabled = true;
+    audioState.limiter.outputGain = fittedOutput;
+    streamingFitHoldUntil = performance.now() + 2500;
+    streamingFitAppliedOutput = fittedOutput;
+    const outputInput = document.getElementById('limiter-output');
+    if (outputInput) outputInput.value = String(fittedOutput);
+    limiter.syncInputs?.();
+    limiter.updateUI(updateCompressorRangeFills);
+    if (isPlaying && audioCtx) limiter.applySettings(audioCtx, getBypassState);
+    updateStreamingLimiterOutput(audioState.limiter);
+    return fittedOutput;
+}
+
+function getStreamingFitRecommendation(integrated) {
+    if (!Number.isFinite(integrated)) return null;
+    const targets = [...document.querySelectorAll('.target-row')]
+        .map((row) => Number(row.dataset.targetLufs))
+        .filter(Number.isFinite);
+    if (!targets.length) return null;
+    const currentOutput = Number(audioState.limiter?.outputGain || 0);
+    const adjustments = targets.map((target) => target - integrated);
+    const strictestAdjustment = Math.min(...adjustments);
+    const hasTooLoudTarget = adjustments.some((adjustment) => adjustment < -0.1);
+    return {
+        hasTooLoudTarget,
+        adjustment: strictestAdjustment,
+        output: clampLimiterOutput(currentOutput + strictestAdjustment)
+    };
+}
+
+function bindStreamingTargetFitButtons() {
+    document.querySelectorAll('.target-row').forEach((row) => {
+        const button = row.querySelector('.target-fit-btn');
+        if (!button || button.dataset.fitBound === 'true') return;
+        button.onclick = () => {
+            const targetOutput = Number(row.dataset.fitOutput);
+            if (!Number.isFinite(targetOutput)) return;
+            const fitted = applyLimiterOutputFit(targetOutput);
+            document.querySelectorAll('.target-fit-btn').forEach((candidate) => candidate.classList.remove('is-applied'));
+            button.classList.add('is-applied');
+            button.title = `Limiter Output ${fitted.toFixed(1)} dB 적용됨`;
+        };
+        button.dataset.fitBound = 'true';
+    });
+}
+
+if (streamingLimiterFit) {
+    streamingLimiterFit.onclick = () => {
+        const recommendation = getStreamingFitRecommendation(latestIntegratedLufs);
+        if (!recommendation || !recommendation.hasTooLoudTarget) return;
+        const fitted = applyLimiterOutputFit(recommendation.output);
+        streamingLimiterFit.innerText = 'FITTING';
+        streamingLimiterFit.title = `가장 큰 타겟 초과분을 기준으로 Limiter Output ${fitted.toFixed(1)} dB 적용됨`;
+        window.setTimeout(() => {
+            if (streamingLimiterFit) streamingLimiterFit.innerText = 'AUTO FIT';
+        }, 2500);
+    };
+}
+
+window.addEventListener('limiter-output-change', (event) => {
+    updateStreamingLimiterOutput(event.detail);
+});
+updateStreamingLimiterOutput();
+bindStreamingTargetFitButtons();
 
 function resetLoudnessStats() {
     loudnessSamples = [];
@@ -574,6 +710,7 @@ function resetLoudnessStats() {
     loudnessTruePeak = 0;
     loudnessLastSampleAt = 0;
     loudnessEnergySum = 0;
+    latestIntegratedLufs = NaN;
     [loudnessMomentary, loudnessShort, loudnessIntegrated, loudnessLra, loudnessPeak].forEach((element) => {
         if (element) element.innerText = '--';
     });
@@ -586,9 +723,21 @@ function resetLoudnessStats() {
     document.querySelectorAll('.target-row').forEach((row) => {
         const diff = row.querySelector('em');
         const status = row.querySelector('i');
+        const fitButton = row.querySelector('.target-fit-btn');
         if (diff) diff.innerText = '--';
         if (status) { status.innerText = 'WAIT'; status.className = ''; }
+        if (fitButton) {
+            fitButton.disabled = true;
+            fitButton.classList.remove('is-applied');
+            fitButton.title = 'LUFS 측정 후 사용 가능';
+        }
+        delete row.dataset.fitOutput;
     });
+    if (streamingLimiterFit) {
+        streamingLimiterFit.disabled = true;
+        streamingLimiterFit.title = 'LUFS 측정 후 사용 가능';
+        streamingLimiterFit.innerText = 'AUTO FIT';
+    }
     drawLoudnessHistory();
 }
 
@@ -636,21 +785,53 @@ function displayLoudnessLevel(bar, value, min, max, unit) {
 }
 
 function updateStreamingTargets(integrated) {
+    latestIntegratedLufs = Number(integrated);
+    updateStreamingLimiterOutput();
+    const recommendation = getStreamingFitRecommendation(latestIntegratedLufs);
+    const isFitHolding = performance.now() < streamingFitHoldUntil;
+    if (streamingLimiterFit) {
+        streamingLimiterFit.disabled = isFitHolding || !recommendation?.hasTooLoudTarget;
+        streamingLimiterFit.title = recommendation?.hasTooLoudTarget
+            ? `가장 엄격한 타겟 기준으로 Limiter Output ${recommendation.output.toFixed(1)} dB 적용`
+            : '현재 스트리밍 타겟 초과 없음';
+        if (!isFitHolding) streamingLimiterFit.innerText = 'AUTO FIT';
+    }
     document.querySelectorAll('.target-row').forEach((row) => {
         const target = Number(row.dataset.targetLufs);
         const adjustment = target - integrated;
         const diff = row.querySelector('em');
         const status = row.querySelector('i');
+        const fitButton = row.querySelector('.target-fit-btn');
         if (!Number.isFinite(integrated)) {
             if (diff) diff.innerText = '--';
             if (status) { status.innerText = 'WAIT'; status.className = ''; }
+            if (fitButton) {
+                fitButton.disabled = true;
+                fitButton.classList.remove('is-applied');
+                fitButton.title = 'LUFS 측정 후 사용 가능';
+            }
+            delete row.dataset.fitOutput;
+            if (streamingLimiterFit) {
+                streamingLimiterFit.disabled = true;
+                streamingLimiterFit.title = 'LUFS 측정 후 사용 가능';
+            }
             return;
         }
+        const currentOutput = Number(audioState.limiter?.outputGain || 0);
+        const fittedOutput = clampLimiterOutput(currentOutput + adjustment);
+        row.dataset.fitOutput = String(fittedOutput);
         if (diff) diff.innerText = `${adjustment > 0 ? '+' : ''}${adjustment.toFixed(1)} dB`;
         if (status) {
             const within = Math.abs(adjustment) <= 1;
             status.innerText = within ? 'OK' : adjustment < 0 ? 'TOO LOUD' : 'QUIET';
             status.className = within ? 'is-ok' : adjustment < 0 ? 'is-loud' : 'is-quiet';
+        }
+        if (fitButton) {
+            const isApplied = streamingFitAppliedOutput !== null && Math.abs(fittedOutput - streamingFitAppliedOutput) <= 0.05;
+            fitButton.disabled = isFitHolding || Math.abs(adjustment) <= 0.1;
+            fitButton.title = `${row.querySelector('span')?.innerText || 'Target'} 기준으로 Limiter Output ${fittedOutput.toFixed(1)} dB 적용`;
+            if (isFitHolding) fitButton.title = 'Limiter Output 반영 중입니다';
+            fitButton.classList.toggle('is-applied', isFitHolding && isApplied);
         }
     });
 }
@@ -728,6 +909,7 @@ function updateMasterLoudnessMeter() {
     const momentary = energyToLufs(meanEnergy(momentarySamples));
     const shortTerm = energyToLufs(meanEnergy(shortSamples));
     const integrated = energyToLufs(loudnessEnergySum / Math.max(1, loudnessSamples.length));
+    latestIntegratedLufs = integrated;
     const shortValues = loudnessChartPoints.map((point) => point.shortTerm).filter(Number.isFinite);
     const lra = shortValues.length >= 10 ? Math.max(0, percentile(shortValues, 0.95) - percentile(shortValues, 0.10)) : 0;
     const peakDb = loudnessTruePeak > 0 ? 20 * Math.log10(loudnessTruePeak) : -Infinity;
@@ -805,13 +987,15 @@ initAudioUpload({
         if (audioCtx.state === 'suspended') void audioCtx.resume().catch(() => {});
         return audioCtx;
     },
-    onLoading: () => {
+    onLoading: (file) => {
         resetLoudnessStats();
-        trackName.innerText = 'AI 멀티 세션 트랙 스펙트럼 분석 중...';
+        startWaveformLoading(file);
+        trackName.innerText = `${file.name} 웨이브폼 불러오는 중...`;
         detectorStatus.innerText = '(분석 연산 중)';
     },
-    onDecoded: ({ file, buffer }) => handleDecodedAudio(file, buffer),
+    onDecoded: ({ file, buffer }) => completeDecodedAudioWithLoading(file, buffer),
     onError: (error) => {
+        stopWaveformLoading(false, error?.message || '파일 로드 실패');
         console.error('Audio upload failed:', error);
         alert(error.message || '오디오 데이터 디코딩에 실패했습니다. 포맷을 다시 확인해 주세요.');
     }
@@ -860,8 +1044,10 @@ function setDownloadButtonEnabled(enabled) {
 const getPlayState = () => isPlaying;
 const getBypassState = () => isBypassed;
 
-// UI 1: 10단 EQ 렌더러
+// UI 1: 20-band EQ renderer and response visualizer
 eq.renderUI('eq-sliders-container');
+eq.initVisualizer('eq-response-canvas');
+eq.startVisualizer();
 
 // UI 2: 20채널 스마트 믹서 사전 장착
 const matrixContainer = document.getElementById('stems-matrix-container');
@@ -896,12 +1082,48 @@ noneBtn.innerHTML = `<span class="preset-num">-</span>선택 안 함 (Flat)`;
 noneBtn.onclick = () => {
     document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
     noneBtn.classList.add('genre-active');
+    audioState.eqEnabled = false;
     
     eq.frequencies.forEach((_, idx) => {
-        eq.setEQValue(idx, 0, audioCtx, getPlayState, getBypassState);
+        eq.setEQValue(idx, 0, audioCtx, getPlayState, getBypassState, false);
     });
+    eq.updateUI();
+    if (audioCtx && isPlaying) eq.applySettings(audioCtx, getBypassState());
 };
 genreGrid.appendChild(noneBtn);
+
+function buildMicroMasterPreset(name, presetIndex) {
+    const valueAt = (idx) => {
+        const freq = eq.frequencies[idx] || 1000;
+        const logFreq = Math.log10(freq);
+        const gaussian = (center, width, gain) => gain * Math.exp(-0.5 * Math.pow((logFreq - Math.log10(center)) / width, 2));
+        let value = 0;
+
+        if (name.includes("Low Shelf +")) value += gaussian(65, 0.42, name.includes("+0.5") ? 0.5 : 0.3);
+        if (name.includes("Low Shelf -") || name.includes("Low Trim")) value -= gaussian(75, 0.42, name.includes("-0.5") ? 0.5 : 0.3);
+        if (name.includes("Sub Clean") || name.includes("Sub Guard")) value -= gaussian(35, 0.28, 0.45);
+        if (name.includes("Kick Weight")) value += gaussian(85, 0.25, 0.4);
+        if (name.includes("Kick Seat")) value += gaussian(95, 0.23, 0.28);
+        if (name.includes("Low Tight") || name.includes("Low Guard") || name.includes("Low Control")) value -= gaussian(180, 0.35, 0.35);
+        if (name.includes("Mud Trim") || name.includes("Mud Cut") || name.includes("Mud -")) value -= gaussian(280, 0.28, name.includes("-0.7") ? 0.7 : 0.42);
+        if (name.includes("Low-Mid Body") || name.includes("Body +") || name.includes("Body Small")) value += gaussian(220, 0.28, name.includes("-0.3") ? -0.3 : 0.32);
+        if (name.includes("Box Trim") || name.includes("Box -")) value -= gaussian(480, 0.22, name.includes("-0.6") ? 0.6 : 0.38);
+        if (name.includes("Center Clarity") || name.includes("Mid Clean") || name.includes("Clean Translation")) value += gaussian(1200, 0.28, 0.28);
+        if (name.includes("Vocal Pocket") || name.includes("Vocal Clear") || name.includes("Presence +") || name.includes("Presence Small") || name.includes("Presence +0.4")) value += gaussian(2600, 0.25, name.includes("+0.5") ? 0.5 : 0.34);
+        if (name.includes("Presence Trim") || name.includes("Harsh") || name.includes("Bite Trim") || name.includes("Bright Tame") || name.includes("Edge Tame")) value -= gaussian(3400, 0.24, name.includes("-0.5") ? 0.5 : 0.34);
+        if (name.includes("Sibilance") || name.includes("Hi-Hat Soft")) value -= gaussian(6500, 0.22, name.includes("-0.5") ? 0.5 : 0.38);
+        if (name.includes("Air +") || name.includes("String Air") || name.includes("Vocal Air") || name.includes("Laptop")) value += gaussian(11000, 0.3, name.includes("+0.6") ? 0.6 : 0.42);
+        if (name.includes("Air -") || name.includes("Top Smooth") || name.includes("Soft Top") || name.includes("Air Soft")) value -= gaussian(11000, 0.32, name.includes("-0.6") ? 0.6 : 0.34);
+        if (name.includes("Warm Tilt") || name.includes("Warm Micro") || name.includes("Tube Warm")) value += gaussian(160, 0.42, 0.28) - gaussian(9000, 0.42, 0.2);
+        if (name.includes("Cool Tilt") || name.includes("Bright A")) value -= gaussian(170, 0.42, 0.22) + gaussian(9000, 0.42, 0.32);
+        if (name.includes("Dense Trim") || name.includes("Translation") || name.includes("Mono Safe")) value -= gaussian(250, 0.3, 0.18) + gaussian(4200, 0.28, 0.15);
+
+        const microVariation = Math.sin((presetIndex + 1) * 0.71 + idx * 0.83) * 0.08;
+        const shaped = Math.max(-1.35, Math.min(1.35, value + microVariation));
+        return Math.round(shaped * 10) / 10;
+    };
+    return eq.frequencies.map((_, idx) => valueAt(idx));
+}
 
 presetNames.forEach((name, i) => {
     const btn = document.createElement('button');
@@ -910,15 +1132,13 @@ presetNames.forEach((name, i) => {
     btn.onclick = () => {
         document.querySelectorAll('#genre-grid button').forEach(b => b.classList.remove('genre-active'));
         btn.classList.add('genre-active');
-        
-        eq.frequencies.forEach((_, idx) => {
-            let base = Math.sin(idx + i) * 5;
-            if (name.includes("Warmth")) base += 3;
-            if (name.includes("Cool")) base = (idx > 5) ? base + 4 : base - 3;
-            let bounded = Math.max(-12, Math.min(12, Math.round(base)));
-            
-            eq.setEQValue(idx, bounded, audioCtx, getPlayState, getBypassState);
+        audioState.eqEnabled = true;
+        const presetValues = buildMicroMasterPreset(name, i);
+        presetValues.forEach((value, idx) => {
+            eq.setEQValue(idx, value, audioCtx, getPlayState, getBypassState, false);
         });
+        eq.updateUI();
+        if (audioCtx && isPlaying) eq.applySettings(audioCtx, getBypassState());
     };
     genreGrid.appendChild(btn);
 });
@@ -953,6 +1173,76 @@ function applyUtilityEffectSettings(context) {
 
 function formatTime(t) {
     return String(Math.floor(t / 60)).padStart(2,'0') + ':' + String(Math.floor(t % 60)).padStart(2,'0');
+}
+
+function createLoadingWaveformPeaks(fileName, bucketCount = 900) {
+    let seed = Array.from(String(fileName || 'audio')).reduce((value, char) => ((value * 31) + char.charCodeAt(0)) >>> 0, 2166136261);
+    const random = () => {
+        seed = (1664525 * seed + 1013904223) >>> 0;
+        return seed / 4294967296;
+    };
+    return Array.from({ length: bucketCount }, (_, index) => {
+        const position = index / Math.max(1, bucketCount - 1);
+        const envelope = 0.42 + (0.25 * Math.sin(position * Math.PI * 5.4)) + (0.13 * Math.sin(position * Math.PI * 17));
+        return Math.max(0.08, Math.min(0.95, envelope + (random() - 0.5) * 0.22));
+    });
+}
+
+function showWaveformLoadMessage(message, done = false) {
+    if (!waveformLoadMessage) return;
+    window.clearTimeout(waveformMessageTimer);
+    waveformLoadMessage.classList.remove('hidden');
+    waveformLoadMessage.classList.toggle('is-done', done);
+    const icon = document.createElement('i');
+    icon.className = done ? 'fa-solid fa-circle-check' : 'fa-solid fa-wave-square fa-beat-fade';
+    const text = document.createElement('span');
+    text.textContent = message;
+    waveformLoadMessage.replaceChildren(icon, text);
+    if (done) {
+        waveformMessageTimer = window.setTimeout(() => waveformLoadMessage.classList.add('hidden'), 2800);
+    }
+}
+
+function startWaveformLoading(file) {
+    if (waveformLoadingFrame) cancelAnimationFrame(waveformLoadingFrame);
+    const state = {
+        fileName: file?.name || '새 오디오 파일',
+        startedAt: performance.now(),
+        progress: 0,
+        pulse: 0,
+        peaks: createLoadingWaveformPeaks(file?.name)
+    };
+    waveformLoadingState = state;
+    waveformProgress = 0;
+    if (waveformTime) waveformTime.innerText = 'LOADING WAVEFORM...';
+    showWaveformLoadMessage(`${state.fileName} 불러오는 중...`);
+    const animate = (now) => {
+        if (waveformLoadingState !== state) return;
+        const elapsed = Math.max(0, now - state.startedAt);
+        state.progress = Math.min(0.94, 1 - Math.exp(-elapsed / 720));
+        state.pulse = elapsed / 1000;
+        drawAudioWaveform(0);
+        waveformLoadingFrame = requestAnimationFrame(animate);
+    };
+    waveformLoadingFrame = requestAnimationFrame(animate);
+}
+
+function stopWaveformLoading(done = false, message = '') {
+    if (waveformLoadingFrame) cancelAnimationFrame(waveformLoadingFrame);
+    waveformLoadingFrame = 0;
+    waveformLoadingState = null;
+    if (message) showWaveformLoadMessage(message, done);
+    drawAudioWaveform(waveformProgress);
+}
+
+function completeDecodedAudioWithLoading(file, buffer) {
+    const loadingState = waveformLoadingState;
+    const elapsed = loadingState ? performance.now() - loadingState.startedAt : 900;
+    const remaining = Math.max(0, 850 - elapsed);
+    window.setTimeout(() => {
+        if (loadingState && waveformLoadingState !== loadingState) return;
+        handleDecodedAudio(file, buffer);
+    }, remaining);
 }
 
 function buildWaveformPeaks(buffer, bucketCount = 900) {
@@ -1023,18 +1313,32 @@ function drawAudioWaveform(progress = waveformProgress) {
         ctx2.stroke();
     }
 
-    const peaks = waveformPeaks.length ? waveformPeaks : new Array(180).fill(0.02);
+    const loading = waveformLoadingState;
+    const peaks = loading?.peaks || (waveformPeaks.length ? waveformPeaks : new Array(180).fill(0.02));
     const barCount = Math.min(peaks.length, Math.floor(width / (3 * dpr)));
     const step = peaks.length / barCount;
     const barW = Math.max(1 * dpr, width / barCount - (1 * dpr));
-    const playX = Math.max(0, Math.min(width, progress * width));
+    const playX = Math.max(0, Math.min(width, (loading ? loading.progress : progress) * width));
 
     for (let i = 0; i < barCount; i++) {
         const peak = peaks[Math.floor(i * step)] || 0;
         const x = i * (width / barCount);
-        const barH = Math.max(1.5 * dpr, peak * (height - padY * 2));
+        const loadingPulse = loading ? 0.9 + (0.1 * Math.sin((i * 0.24) + loading.pulse * 6)) : 1;
+        const barH = Math.max(1.5 * dpr, peak * loadingPulse * (height - padY * 2));
         ctx2.fillStyle = x <= playX ? played : idle;
         ctx2.fillRect(x, centerY - (barH / 2), barW, barH);
+    }
+
+    if (loading) {
+        const scanGradient = ctx2.createLinearGradient(Math.max(0, playX - 80 * dpr), 0, playX, 0);
+        scanGradient.addColorStop(0, 'rgba(34,211,238,0)');
+        scanGradient.addColorStop(1, 'rgba(34,211,238,.2)');
+        ctx2.fillStyle = scanGradient;
+        ctx2.fillRect(Math.max(0, playX - 80 * dpr), 0, Math.min(playX, 80 * dpr), height);
+        ctx2.strokeStyle = '#22d3ee';
+        ctx2.lineWidth = 2 * dpr;
+        ctx2.beginPath(); ctx2.moveTo(playX, 0); ctx2.lineTo(playX, height); ctx2.stroke();
+        return;
     }
 
     ctx2.fillStyle = isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(34, 211, 238, 0.12)';
@@ -1523,9 +1827,12 @@ function bindLiveControlTriggers() {
             if (isCollapsed) {
                 eqCollapseContent.classList.remove('hidden');
                 eqCollapseIcon.className = "fa-solid fa-chevron-up";
+                eqCollapseBtn.setAttribute('aria-expanded', 'true');
+                window.setTimeout(() => eq.drawEQCanvas?.(), 0);
             } else {
                 eqCollapseContent.classList.add('hidden');
                 eqCollapseIcon.className = "fa-solid fa-chevron-down";
+                eqCollapseBtn.setAttribute('aria-expanded', 'false');
             }
             setTimeout(() => {
                 handleResize();
@@ -1580,6 +1887,7 @@ reverb.updateUI(updateCompressorRangeFills);
 setupPostEqUtilityEffects();
 compressor.populateTemplates('comp-template-select');
 compressor.updateUI(updateCompressorRangeFills);
+limiter.initVisualizers();
 limiter.updateUI(updateCompressorRangeFills);
 bindLiveControlTriggers();
 bindSpatialControls();
@@ -1610,7 +1918,7 @@ if (cfgTubeExciter) {
 document.getElementById('reset-all-btn').onclick = () => {
     executeBypassRouting(true);
     resetLoudnessStats();
-    audioState.eq = [0,0,0,0,0,0,0,0,0,0];
+    audioState.eq = new Array(20).fill(0);
     audioState.eqEnabled = false;
     audioState.stemsEnabled = false;
     updateStemsToggleUI();
@@ -1791,8 +2099,9 @@ function handleDecodedAudio(file, buffer) {
     sectionRepeatEnd = buffer.duration;
     updateSectionRepeatUI(0);
     waveformPeaks = buildWaveformPeaks(buffer);
+    stopWaveformLoading(true, `${file.name} 로드 완료`);
     updateWaveformProgress(0);
-    trackName.innerText = `곡명: ${file.name}`;
+    trackName.innerText = `로드 완료: ${file.name}`;
 
     activeStemIds = [];
     const activeCount = Math.floor(Math.random() * 5) + 8;
@@ -1917,6 +2226,8 @@ async function startPlaybackAt(offset = 0) {
     analyserNode = audioCtx.createAnalyser();
     analyserNode.fftSize = 2048;
     analyserNode.smoothingTimeConstant = 0.78;
+    analyserNode.minDecibels = SPECTRUM_MIN_DB;
+    analyserNode.maxDecibels = SPECTRUM_MAX_DB;
 
     finalizedOutput.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
@@ -2217,7 +2528,53 @@ function collectSpectrumBands(dataArray, count) {
     });
 }
 
+const SPECTRUM_MIN_DB = -72;
+const SPECTRUM_MAX_DB = 0;
+
+function getSpectrumPlotRect() {
+    const left = 32;
+    const right = 6;
+    const top = 24;
+    const bottom = 8;
+    return {
+        left,
+        top,
+        right: canvas.width - right,
+        bottom: canvas.height - bottom,
+        width: Math.max(1, canvas.width - left - right),
+        height: Math.max(1, canvas.height - top - bottom)
+    };
+}
+
+function drawSpectrumDbScale() {
+    const plot = getSpectrumPlotRect();
+    const ticks = [0, -12, -24, -36, -48, -60, -72];
+    ctx.save();
+    ctx.font = '8px ui-monospace, monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ticks.forEach((db) => {
+        const ratio = (db - SPECTRUM_MIN_DB) / (SPECTRUM_MAX_DB - SPECTRUM_MIN_DB);
+        const y = plot.bottom - ratio * plot.height;
+        ctx.strokeStyle = db === 0 ? 'rgba(251,113,133,.28)' : 'rgba(71,85,105,.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(plot.left, y); ctx.lineTo(plot.right, y); ctx.stroke();
+        ctx.fillStyle = db === 0 ? '#fb7185' : '#64748b';
+        ctx.fillText(`${db}`, plot.left - 5, y);
+    });
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'left';
+    ctx.fillText('dB', 3, plot.top - 10);
+    for (let index = 0; index <= 10; index++) {
+        const x = plot.left + plot.width * index / 10;
+        ctx.strokeStyle = 'rgba(71,85,105,.13)';
+        ctx.beginPath(); ctx.moveTo(x, plot.top); ctx.lineTo(x, plot.bottom); ctx.stroke();
+    }
+    ctx.restore();
+}
+
 function drawSpectrumFrequencyLabels(bands) {
+    const plot = getSpectrumPlotRect();
     const labelStep = Math.max(1, Math.ceil(bands.length / 10));
     ctx.save();
     ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1e293b' : '#64748b';
@@ -2225,21 +2582,22 @@ function drawSpectrumFrequencyLabels(bands) {
     ctx.textAlign = 'center';
     bands.forEach((band, index) => {
         if (index % labelStep !== 0 && index !== bands.length - 1) return;
-        const x = ((index + 0.5) / bands.length) * canvas.width;
+        const x = plot.left + ((index + 0.5) / bands.length) * plot.width;
         ctx.fillText(formatSpectrumFrequency(band.frequency), x, 10);
     });
     ctx.restore();
 }
 
 function drawBarSpectrum(bands) {
-    const slotWidth = canvas.width / bands.length;
+    const plot = getSpectrumPlotRect();
+    const slotWidth = plot.width / bands.length;
     const gap = Math.max(1, Math.min(4, slotWidth * 0.16));
     const barWidth = Math.max(1, slotWidth - gap);
     bands.forEach((band, index) => {
-        const barHeight = band.percent * (canvas.height - 16);
-        const x = (index * slotWidth) + (gap / 2);
-        const y = canvas.height - barHeight;
-        const gradient = ctx.createLinearGradient(0, y, 0, canvas.height);
+        const barHeight = band.percent * plot.height;
+        const x = plot.left + (index * slotWidth) + (gap / 2);
+        const y = plot.bottom - barHeight;
+        const gradient = ctx.createLinearGradient(0, y, 0, plot.bottom);
         gradient.addColorStop(0, '#f43f5e');
         gradient.addColorStop(0.4, '#fbbf24');
         gradient.addColorStop(1, '#10b981');
@@ -2249,24 +2607,27 @@ function drawBarSpectrum(bands) {
     drawSpectrumFrequencyLabels(bands);
 }
 
-function drawWaveSpectrum(bands) {
+function drawWaveSpectrum(bands, overlay = false) {
+    const plot = getSpectrumPlotRect();
     const points = bands.map((band, index) => ({
-        x: ((index + 0.5) / bands.length) * canvas.width,
-        y: canvas.height - (band.percent * (canvas.height - 18))
+        x: plot.left + ((index + 0.5) / bands.length) * plot.width,
+        y: plot.bottom - (band.percent * plot.height)
     }));
     if (!points.length) return;
 
-    const fillGradient = ctx.createLinearGradient(0, 12, 0, canvas.height);
-    fillGradient.addColorStop(0, 'rgba(244,63,94,.58)');
-    fillGradient.addColorStop(0.42, 'rgba(251,191,36,.36)');
-    fillGradient.addColorStop(1, 'rgba(16,185,129,.08)');
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, canvas.height);
-    points.forEach((point) => ctx.lineTo(point.x, point.y));
-    ctx.lineTo(points[points.length - 1].x, canvas.height);
-    ctx.closePath();
-    ctx.fillStyle = fillGradient;
-    ctx.fill();
+    if (!overlay) {
+        const fillGradient = ctx.createLinearGradient(0, plot.top, 0, plot.bottom);
+        fillGradient.addColorStop(0, 'rgba(244,63,94,.58)');
+        fillGradient.addColorStop(0.42, 'rgba(251,191,36,.36)');
+        fillGradient.addColorStop(1, 'rgba(16,185,129,.08)');
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, plot.bottom);
+        points.forEach((point) => ctx.lineTo(point.x, point.y));
+        ctx.lineTo(points[points.length - 1].x, plot.bottom);
+        ctx.closePath();
+        ctx.fillStyle = fillGradient;
+        ctx.fill();
+    }
 
     const lineGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
     lineGradient.addColorStop(0, '#10b981');
@@ -2278,7 +2639,7 @@ function drawWaveSpectrum(bands) {
         else ctx.lineTo(point.x, point.y);
     });
     ctx.strokeStyle = lineGradient;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = overlay ? 2.6 : 2.2;
     ctx.shadowColor = 'rgba(34,211,238,.65)';
     ctx.shadowBlur = 6;
     ctx.stroke();
@@ -2292,7 +2653,7 @@ function drawWaveSpectrum(bands) {
             ctx.fill();
         });
     }
-    drawSpectrumFrequencyLabels(bands);
+    if (!overlay) drawSpectrumFrequencyLabels(bands);
 }
 
 function animateSpectrum() {
@@ -2302,14 +2663,12 @@ function animateSpectrum() {
     if(!canvas || !ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.strokeStyle = 'rgba(26, 36, 59, 0.2)'; ctx.lineWidth = 1;
-    for(let i=0; i<canvas.width; i+=canvas.width/10) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
-    for(let j=0; j<canvas.height; j+=25) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke(); }
+    drawSpectrumDbScale();
 
     if (!analyserNode || !isPlaying) {
+        const plot = getSpectrumPlotRect();
         ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = '#1e293b';
-        ctx.moveTo(0, canvas.height - 10); ctx.lineTo(canvas.width, canvas.height - 10); ctx.stroke();
+        ctx.moveTo(plot.left, plot.bottom); ctx.lineTo(plot.right, plot.bottom); ctx.stroke();
         
         if(lufsBar) lufsBar.style.width = "0%";
         if(lufsText) lufsText.innerText = "-inf dB";
@@ -2324,8 +2683,14 @@ function animateSpectrum() {
     const dataArray = new Uint8Array(bufferLength);
     analyserNode.getByteFrequencyData(dataArray);
     const spectrumBands = collectSpectrumBands(dataArray, spectrumBandCount);
-    if (spectrumViewMode === 'wave') drawWaveSpectrum(spectrumBands);
-    else drawBarSpectrum(spectrumBands);
+    if (spectrumViewMode === 'wave') {
+        drawWaveSpectrum(spectrumBands);
+    } else if (spectrumViewMode === 'combo') {
+        drawBarSpectrum(spectrumBands);
+        drawWaveSpectrum(spectrumBands, true);
+    } else {
+        drawBarSpectrum(spectrumBands);
+    }
 
     const rms = Math.sqrt(spectrumBands.reduce((sum, band) => sum + (band.percent * band.percent), 0) / Math.max(1, spectrumBands.length));
     const dbLevel = Math.round(20 * Math.log10(rms + 0.0001));
@@ -2350,15 +2715,52 @@ function animateSpectrum() {
 }
 
 function handleResize() {
-    canvas.width = canvas.parentElement.clientWidth - 40;
-    canvas.height = 140;
+    const spectrumRect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(260, Math.round(spectrumRect.width));
+    canvas.height = Math.max(120, Math.round(spectrumRect.height));
     compressor.drawCurve();
     reverb.updateReverbVisualizers?.();
+    limiter.updateLimiterVisualizers?.();
     drawAudioWaveform(waveformProgress);
     drawLoudnessHistory();
 }
 
+const SPECTRUM_PANEL_HEIGHT_STORAGE_KEY = 'jd-spectrum-panel-height';
+function setupSpectrumHeightResize() {
+    if (!spectrumAnalyzerPanel || !spectrumHeightResizer) return;
+    try {
+        const storedHeight = Number(localStorage.getItem(SPECTRUM_PANEL_HEIGHT_STORAGE_KEY));
+        if (Number.isFinite(storedHeight) && storedHeight >= 220 && storedHeight <= 620) {
+            spectrumAnalyzerPanel.style.height = `${storedHeight}px`;
+        }
+    } catch (error) {}
+    let startY = 0;
+    let startHeight = 0;
+    const finish = (event) => {
+        if (!spectrumHeightResizer.classList.contains('is-resizing')) return;
+        spectrumHeightResizer.classList.remove('is-resizing');
+        if (spectrumHeightResizer.hasPointerCapture?.(event.pointerId)) spectrumHeightResizer.releasePointerCapture(event.pointerId);
+        try { localStorage.setItem(SPECTRUM_PANEL_HEIGHT_STORAGE_KEY, String(Math.round(spectrumAnalyzerPanel.getBoundingClientRect().height))); } catch (error) {}
+        handleResize();
+    };
+    spectrumHeightResizer.onpointerdown = (event) => {
+        event.preventDefault();
+        startY = event.clientY;
+        startHeight = spectrumAnalyzerPanel.getBoundingClientRect().height;
+        spectrumHeightResizer.classList.add('is-resizing');
+        spectrumHeightResizer.setPointerCapture?.(event.pointerId);
+    };
+    spectrumHeightResizer.onpointermove = (event) => {
+        if (!spectrumHeightResizer.classList.contains('is-resizing')) return;
+        spectrumAnalyzerPanel.style.height = `${Math.max(220, Math.min(620, startHeight + event.clientY - startY))}px`;
+        handleResize();
+    };
+    spectrumHeightResizer.onpointerup = finish;
+    spectrumHeightResizer.onpointercancel = finish;
+}
+
 window.addEventListener('resize', handleResize);
+setupSpectrumHeightResize();
 handleResize();
 drawAudioWaveform(0);
 animateSpectrum();

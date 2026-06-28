@@ -8,11 +8,11 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="icon" href="data:,">
-    <title> 멀티 마스터링 스튜디오 v10.1 (Ultimate Audio Engine By JD & Jena)</title>
+    <title> JAiMse(JJaIMsae) JENA AI Engin Mastering Tool V2.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260628-22">
+    <link rel="stylesheet" href="index.css?v=20260628-32">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-6">
 </head>
 
@@ -25,10 +25,10 @@
             <div>
                 <h1 class="text-xl font-bold text-white flex items-center gap-3">
                     <i class="fa-solid fa-layer-group text-blue-500 animate-pulse"></i>
-                    JAiMse(JJaimsae) JENA AI Engin Mastering Tools<span
-                        class="text-xs bg-indigo-600 px-2 py-0.5 rounded text-white font-normal">Jena Engine V1.1 </span>
+                    JAiMse(JJaIMsae) JENA AI Engin Mastering Tools<span
+                        class="text-xs bg-indigo-600 px-2 py-0.5 rounded text-white font-normal">Jena Engine V2.3 </span>
                 </h1>
-                <p class="text-xs text-gray-400 mt-1">4배 오버샘플링 배음 익사이터 하이엔드 인코딩 파이프라인 탑재</p>
+                <p class="text-xs text-gray-400 mt-1">Professional mastering tools for creators max4up</p>
             </div>
             <div class="relative w-full sm:w-auto space-y-2">
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -221,8 +221,8 @@
                     </div>
                 </div>
 
-                <div
-                    class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 relative overflow-hidden h-60 flex flex-col justify-between shadow-xl">
+                <div id="spectrum-analyzer-panel"
+                    class="spectrum-analyzer-panel bg-[#090d16] p-4 rounded-2xl border border-gray-800 relative overflow-hidden flex flex-col shadow-xl">
                     <div class="flex justify-between items-center z-10">
                         <span
                             class="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded font-mono font-bold tracking-wider">REAL-TIME
@@ -231,6 +231,7 @@
                             <div class="spectrum-view-switch" role="group" aria-label="FFT 표시 방식">
                                 <button id="spectrum-bars-btn" type="button" class="spectrum-view-btn is-active" aria-pressed="true">BAR</button>
                                 <button id="spectrum-wave-btn" type="button" class="spectrum-view-btn" aria-pressed="false">WAVE</button>
+                                <button id="spectrum-combo-btn" type="button" class="spectrum-view-btn" aria-pressed="false">BAR+WAVE</button>
                             </div>
                             <span class="text-[9px] font-mono text-gray-400">CLIP</span>
                             <div id="clip-led"
@@ -239,10 +240,11 @@
                         </div>
                     </div>
 
-                    <canvas id="visualizer" class="w-full h-32 mt-2 z-10"></canvas>
+                    <canvas id="visualizer" class="spectrum-analyzer-canvas w-full mt-2 z-10"></canvas>
 
                     <div id="track-name" class="text-[11px] text-blue-400/80 font-mono truncate text-center z-10">
                         Waiting for audio source signal...</div>
+                    <button id="spectrum-height-resizer" type="button" class="spectrum-height-resizer" aria-label="FFT 분석기 높이 조절" title="위아래로 드래그하여 분석기 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
                 </div>
 
                 <section id="master-loudness-panel" class="loudness-panel">
@@ -267,10 +269,16 @@
                         </div>
                         <div class="loudness-targets">
                             <div class="loudness-subhead"><span>STREAMING TARGETS</span><small>Normalization</small></div>
-                            <div class="target-row" data-target-lufs="-14"><span>Spotify</span><b>-14 LUFS</b><em>--</em><i>WAIT</i></div>
-                            <div class="target-row" data-target-lufs="-14"><span>YouTube</span><b>-14 LUFS</b><em>--</em><i>WAIT</i></div>
-                            <div class="target-row" data-target-lufs="-16"><span>Apple Music</span><b>-16 LUFS</b><em>--</em><i>WAIT</i></div>
-                            <div class="target-row" data-target-lufs="-14"><span>Amazon Music</span><b>-14 LUFS</b><em>--</em><i>WAIT</i></div>
+                            <div class="streaming-limiter-sync" id="streaming-limiter-sync">
+                                <span><i class="fa-solid fa-link"></i> LIMITER OUTPUT</span>
+                                <strong id="streaming-limiter-output">0.0 dB</strong>
+                                <em id="streaming-limiter-status">OUT</em>
+                                <button type="button" id="streaming-limiter-fit" disabled>AUTO FIT</button>
+                            </div>
+                            <div class="target-row" data-target-lufs="-14"><span>Spotify</span><b>-14 LUFS</b><em>--</em><i>WAIT</i><button type="button" class="target-fit-btn" disabled>FIT</button></div>
+                            <div class="target-row" data-target-lufs="-14"><span>YouTube</span><b>-14 LUFS</b><em>--</em><i>WAIT</i><button type="button" class="target-fit-btn" disabled>FIT</button></div>
+                            <div class="target-row" data-target-lufs="-16"><span>Apple Music</span><b>-16 LUFS</b><em>--</em><i>WAIT</i><button type="button" class="target-fit-btn" disabled>FIT</button></div>
+                            <div class="target-row" data-target-lufs="-14"><span>Amazon Music</span><b>-14 LUFS</b><em>--</em><i>WAIT</i><button type="button" class="target-fit-btn" disabled>FIT</button></div>
                         </div>
                         <div class="loudness-footer"><span>BS.1770-style estimate · True Peak/LRA Approx</span><button id="loudness-reset-btn" type="button"><i class="fa-solid fa-rotate"></i> RESET</button></div>
                     </div>
@@ -583,6 +591,30 @@
                                     class="limiter-slider w-full h-1.5 rounded appearance-none accent-lime-500">
                             </div>
                         </div>
+                        <div class="limiter-advanced-content is-collapsed" aria-label="리미터 고급 분석">
+                            <div class="limiter-advanced-summary">
+                                <div><small>TRUE PEAK</small><strong id="limiter-true-peak">-∞ dBTP</strong></div>
+                                <div><small>OUTPUT CEILING</small><strong id="limiter-ceiling-now">0.0 dBTP</strong></div>
+                                <div><small>LIMITER MODE</small><strong>LOOKAHEAD 5 ms</strong></div>
+                            </div>
+                            <div class="limiter-visual-grid">
+                                <div class="limiter-visual-card">
+                                    <div class="limiter-visual-title"><span>GAIN REDUCTION HISTORY</span><span id="limiter-gr-now">0.0 dB</span></div>
+                                    <canvas id="limiter-gr-history-canvas" aria-label="게인 리덕션 히스토리"></canvas>
+                                    <div class="limiter-visual-legend"><span class="lime">Gain Reduction</span><span>최근 10초</span></div>
+                                </div>
+                                <div class="limiter-visual-card">
+                                    <div class="limiter-visual-title"><span>TRANSFER CURVE</span><span id="limiter-curve-info">Threshold / Ceiling</span></div>
+                                    <canvas id="limiter-transfer-canvas" aria-label="리미터 트랜스퍼 곡선"></canvas>
+                                    <div class="limiter-visual-legend"><span class="lime">Output</span><span class="amber">Ceiling</span></div>
+                                </div>
+                                <div class="limiter-visual-card">
+                                    <div class="limiter-visual-title"><span>LOOKAHEAD PEAK TRACE</span><span id="limiter-peak-now">-∞ dB</span></div>
+                                    <canvas id="limiter-peak-trace-canvas" aria-label="룩어헤드 피크 추적"></canvas>
+                                    <div class="limiter-visual-legend"><span class="amber">Input</span><span class="lime">Limited Output</span></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
@@ -627,8 +659,9 @@
                         </h3>
                         <span id="waveform-time" class="text-xs text-gray-400 font-mono">00:00 / 00:00</span>
                     </div>
-                    <div class="bg-[#03050a] p-3 rounded-xl border border-gray-800 space-y-2">
+                    <div class="waveform-canvas-shell bg-[#03050a] p-3 rounded-xl border border-gray-800 space-y-2">
                         <canvas id="audio-waveform" class="w-full h-28 block cursor-pointer"></canvas>
+                        <div id="waveform-load-message" class="waveform-load-message hidden" role="status" aria-live="polite"></div>
                     </div>
                     <div id="global-player-shell" class="global-player-shell" data-player-mode="inner">
                     <div class="waveform-transport" aria-label="오디오 재생 컨트롤">
@@ -743,39 +776,55 @@
                     </div>
                 </div>
 
-                <!-- 10-Band Graphic Parametric Equalizer -->
-                <div class="bg-[#090d16] p-5 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
-                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-                        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-chart-simple text-emerald-400"></i> 10-Band Graphic Parametric
-                            Equalizer
+                <!-- 20-Band Graphic Parametric Equalizer -->
+                <section id="eq-panel" class="eq-panel">
+                    <header class="eq-panel-header">
+                        <h3>
+                            <i class="fa-solid fa-chart-simple"></i>
+                            <span>20-BAND PARAMETRIC GRAPHIC EQUALIZER</span>
                         </h3>
-                        <div class="flex items-center gap-2">
-                            <button id="eq-toggle" type="button" aria-pressed="false"
-                                class="bg-gray-800 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-700 transition">OUT</button>
-                            <button id="eq-collapse-btn" type="button"
-                                class="text-gray-400 hover:text-white transition text-xs p-1" title="Toggle Collapse">
+                        <div class="eq-header-actions">
+                            <select id="eq-preset-select" class="eq-preset-select" aria-label="EQ preset">
+                                <option value="flat">Flat</option>
+                                <option value="warm">Warm Master</option>
+                                <option value="vocal">Vocal Clarity</option>
+                                <option value="punch">Punch &amp; Impact</option>
+                                <option value="clarity">Clean Detail</option>
+                                <option value="smile">Modern Smile</option>
+                            </select>
+                            <button id="eq-toggle" type="button" aria-pressed="false" class="eq-toggle">OUT</button>
+                            <button id="eq-collapse-btn" type="button" class="eq-collapse-btn" title="EQ 접기/펼치기"
+                                aria-controls="eq-collapse-content" aria-expanded="true">
                                 <i id="eq-collapse-icon" class="fa-solid fa-chevron-up"></i>
                             </button>
                         </div>
-                    </div>
-                    <div id="eq-collapse-content" class="space-y-3 transition-all duration-300">
-                        <div
-                            class="flex justify-between items-center h-40 bg-[#03050a] p-4 rounded-xl border border-gray-800 gap-1 overflow-x-auto">
-                            <div
-                                class="flex flex-col items-center h-full justify-between text-[9px] text-gray-500 font-mono pr-2 select-none">
-                                <span>+12</span><span>0</span><span>-12</span>
+                    </header>
+                    <div id="eq-collapse-content" class="eq-collapse-content">
+                        <div id="eq-response-shell" class="eq-response-shell">
+                            <canvas id="eq-response-canvas" tabindex="0"
+                                aria-label="20밴드 EQ 응답 그래프. 포인트를 위아래로 드래그하여 게인을 조절합니다."></canvas>
+                            <div class="eq-graph-help"><i class="fa-solid fa-computer-mouse"></i> 포인트 드래그 · 더블클릭 0 dB</div>
+                            <button type="button" class="effect-graph-resizer eq-graph-resizer"
+                                data-resize-target="eq-response-shell" data-resize-key="jd-eq-graph-height"
+                                aria-label="EQ 그래프 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
+                        </div>
+                        <div id="eq-slider-frame" class="eq-slider-frame">
+                            <div class="eq-slider-axis" aria-hidden="true">
+                                <span>+12 dB</span><span>+9 dB</span><span>+6 dB</span><span>+3 dB</span><span>0 dB</span><span>-3 dB</span><span>-6 dB</span><span>-9 dB</span><span>-12 dB</span>
                             </div>
-                            <div class="flex justify-around items-center flex-1 h-full" id="eq-sliders-container"></div>
+                            <div id="eq-sliders-container" class="eq-sliders-container"></div>
+                            <button type="button" class="effect-graph-resizer eq-slider-resizer"
+                                data-resize-target="eq-slider-frame" data-resize-key="jd-eq-slider-height"
+                                aria-label="EQ 슬라이더 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
                         </div>
                         <div id="post-eq-effects" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
                     </div>
-                </div>
+                </section>
 
                 <!-- AI 100-Preset Mastering Library -->
                 <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-2 shadow-xl">
                     <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fa-solid fa-compact-disc text-blue-400"></i> AI 100-Preset Mastering Library
+                        <i class="fa-solid fa-compact-disc text-blue-400"></i> AI 100 Micro Mastering Presets
                     </h3>
                     <div class="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1 text-xs" id="genre-grid"></div>
                 </div>
@@ -784,12 +833,12 @@
         </div>
     </div>
 
-    <script src="effector/EQ/eq.js?v=20260628-6"></script>
+    <script src="effector/EQ/eq.js?v=20260628-7"></script>
     <script src="effector/reverb/reverb.js?v=20260628-18"></script>
     <script src="effector/Compressor/compressor.js?v=20260628-20"></script>
-    <script src="effector/limitor/limiter.js?v=20260628-6"></script>
-    <script src="UploadeFiles/audio-upload.js?v=20260628-6"></script>
-    <script src="index.js?v=20260628-25"></script>
+    <script src="effector/limitor/limiter.js?v=20260628-8"></script>
+    <script src="UploadeFiles/audio-upload.js?v=20260628-7"></script>
+    <script src="index.js?v=20260628-34"></script>
 </body>
 
 </html>

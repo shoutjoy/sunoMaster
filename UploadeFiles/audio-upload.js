@@ -192,7 +192,7 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
             });
             if (jobId !== currentJob) return;
             onDecoded?.({ file, buffer });
-            setStatus('running', '백그라운드 분석 중');
+            setStatus('running', '로드 완료 · 분석 중');
             try {
                 activeWorker = runAnalysis(buffer, file, jobId, (id) => id === currentJob);
             } catch (analysisError) {
