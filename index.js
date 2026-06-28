@@ -1,6 +1,7 @@
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
 const themeLabel = document.getElementById('theme-label');
+const downloadBtn = document.getElementById('download-btn');
 
 function applyTheme(theme) {
     const isLight = theme === 'light';
@@ -41,8 +42,24 @@ const playerSettingsBtn = document.getElementById('player-settings-btn');
 const playerSettingsMenu = document.getElementById('player-settings-menu');
 const playerModeInner = document.getElementById('player-mode-inner');
 const playerModeFloat = document.getElementById('player-mode-float');
+const playerFloatToggle = document.getElementById('player-float-toggle');
+const exportPrefixInput = document.getElementById('export-prefix-input');
+const exportFilenamePreview = document.getElementById('export-filename-preview');
+const stemConsoleVisibilitySetting = document.getElementById('setting-show-stem-console');
+const stemConsoleSection = document.getElementById('stem-console-section');
+const spectrumBandCountInput = document.getElementById('spectrum-band-count');
+const spectrumBarsBtn = document.getElementById('spectrum-bars-btn');
+const spectrumWaveBtn = document.getElementById('spectrum-wave-btn');
 const globalPlayerShell = document.getElementById('global-player-shell');
 const PLAYER_MODE_STORAGE_KEY = 'jd-player-display-mode';
+const EXPORT_PREFIX_STORAGE_KEY = 'jd-export-filename-prefix';
+const STEM_CONSOLE_VISIBLE_STORAGE_KEY = 'jd-show-stem-console';
+const SPECTRUM_BAND_COUNT_STORAGE_KEY = 'jd-spectrum-band-count';
+const SPECTRUM_VIEW_MODE_STORAGE_KEY = 'jd-spectrum-view-mode';
+const DEFAULT_EXPORT_PREFIX = 'mastered_';
+const DEFAULT_SPECTRUM_BAND_COUNT = 20;
+let spectrumBandCount = DEFAULT_SPECTRUM_BAND_COUNT;
+let spectrumViewMode = 'bars';
 
 function getStoredPlayerMode() {
     try {
@@ -54,10 +71,18 @@ function getStoredPlayerMode() {
 
 function applyPlayerMode(mode, persist = true) {
     const normalizedMode = mode === 'float' ? 'float' : 'inner';
-    document.body.classList.toggle('player-float', normalizedMode === 'float');
+    const isFloating = normalizedMode === 'float';
+    document.body.classList.toggle('player-float', isFloating);
     if (globalPlayerShell) globalPlayerShell.dataset.playerMode = normalizedMode;
     if (playerModeInner) playerModeInner.checked = normalizedMode === 'inner';
     if (playerModeFloat) playerModeFloat.checked = normalizedMode === 'float';
+    if (playerFloatToggle) {
+        playerFloatToggle.classList.toggle('is-floating', isFloating);
+        playerFloatToggle.setAttribute('aria-pressed', String(isFloating));
+        playerFloatToggle.title = isFloating ? '플레이바 원래 위치로 복귀' : '플레이바 플로팅';
+        playerFloatToggle.setAttribute('aria-label', playerFloatToggle.title);
+        playerFloatToggle.innerHTML = `<i class="fa-solid fa-${isFloating ? 'compress' : 'up-right-and-down-left-from-center'}"></i>`;
+    }
     if (persist) {
         try { localStorage.setItem(PLAYER_MODE_STORAGE_KEY, normalizedMode); } catch (error) {}
     }
@@ -92,7 +117,77 @@ if (playerModeFloat) playerModeFloat.onchange = () => {
         setPlayerSettingsOpen(false);
     }
 };
+if (playerFloatToggle) {
+    playerFloatToggle.onclick = () => {
+        applyPlayerMode(document.body.classList.contains('player-float') ? 'inner' : 'float');
+    };
+}
 applyPlayerMode(getStoredPlayerMode(), false);
+
+function applyStemConsoleVisibility(visible, persist = true) {
+    const shouldShow = Boolean(visible);
+    if (stemConsoleSection) stemConsoleSection.hidden = !shouldShow;
+    if (stemConsoleVisibilitySetting) stemConsoleVisibilitySetting.checked = shouldShow;
+    if (persist) {
+        try { localStorage.setItem(STEM_CONSOLE_VISIBLE_STORAGE_KEY, String(shouldShow)); } catch (error) {}
+    }
+}
+
+let shouldShowStemConsole = false;
+try {
+    shouldShowStemConsole = localStorage.getItem(STEM_CONSOLE_VISIBLE_STORAGE_KEY) === 'true';
+} catch (error) {}
+applyStemConsoleVisibility(shouldShowStemConsole, false);
+
+if (stemConsoleVisibilitySetting) {
+    stemConsoleVisibilitySetting.onchange = () => {
+        applyStemConsoleVisibility(stemConsoleVisibilitySetting.checked);
+        window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
+    };
+}
+
+function normalizeSpectrumBandCount(value) {
+    const parsed = Math.round(Number(value));
+    return Number.isFinite(parsed) ? Math.max(8, Math.min(64, parsed)) : DEFAULT_SPECTRUM_BAND_COUNT;
+}
+
+function applySpectrumBandCount(value, persist = true) {
+    spectrumBandCount = normalizeSpectrumBandCount(value);
+    if (spectrumBandCountInput) spectrumBandCountInput.value = String(spectrumBandCount);
+    if (persist) {
+        try { localStorage.setItem(SPECTRUM_BAND_COUNT_STORAGE_KEY, String(spectrumBandCount)); } catch (error) {}
+    }
+}
+
+function applySpectrumViewMode(mode, persist = true) {
+    spectrumViewMode = mode === 'wave' ? 'wave' : 'bars';
+    const isWave = spectrumViewMode === 'wave';
+    spectrumBarsBtn?.classList.toggle('is-active', !isWave);
+    spectrumWaveBtn?.classList.toggle('is-active', isWave);
+    spectrumBarsBtn?.setAttribute('aria-pressed', String(!isWave));
+    spectrumWaveBtn?.setAttribute('aria-pressed', String(isWave));
+    if (persist) {
+        try { localStorage.setItem(SPECTRUM_VIEW_MODE_STORAGE_KEY, spectrumViewMode); } catch (error) {}
+    }
+}
+
+let storedSpectrumBandCount = DEFAULT_SPECTRUM_BAND_COUNT;
+let storedSpectrumViewMode = 'bars';
+try {
+    storedSpectrumBandCount = localStorage.getItem(SPECTRUM_BAND_COUNT_STORAGE_KEY) || DEFAULT_SPECTRUM_BAND_COUNT;
+    storedSpectrumViewMode = localStorage.getItem(SPECTRUM_VIEW_MODE_STORAGE_KEY) || 'bars';
+} catch (error) {}
+applySpectrumBandCount(storedSpectrumBandCount, false);
+applySpectrumViewMode(storedSpectrumViewMode, false);
+
+if (spectrumBandCountInput) {
+    spectrumBandCountInput.oninput = () => {
+        if (spectrumBandCountInput.value !== '') applySpectrumBandCount(spectrumBandCountInput.value);
+    };
+    spectrumBandCountInput.onblur = () => applySpectrumBandCount(spectrumBandCountInput.value);
+}
+if (spectrumBarsBtn) spectrumBarsBtn.onclick = () => applySpectrumViewMode('bars');
+if (spectrumWaveBtn) spectrumWaveBtn.onclick = () => applySpectrumViewMode('wave');
 
 const eqLabels = ["31.5", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"];
 
@@ -208,6 +303,45 @@ let waveformProgress = 0;
 let currentAudioFileBlob = null;
 let currentAudioFileName = "";
 
+function sanitizeFilenamePart(value) {
+    return String(value ?? '').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').slice(0, 80);
+}
+
+function getExportPrefix() {
+    const inputValue = exportPrefixInput ? exportPrefixInput.value : DEFAULT_EXPORT_PREFIX;
+    return sanitizeFilenamePart(inputValue);
+}
+
+function getMasteredExportFilename() {
+    const originalBaseName = sanitizeFilenamePart((currentAudioFileName || 'audio').replace(/\.[^/.]+$/, '')) || 'audio';
+    return `${getExportPrefix()}${originalBaseName}.wav`;
+}
+
+function updateExportFilenamePreview() {
+    const filename = getMasteredExportFilename();
+    if (exportFilenamePreview) exportFilenamePreview.innerText = filename;
+    if (downloadBtn) {
+        downloadBtn.title = filename;
+        downloadBtn.setAttribute('aria-label', `Mastering Data Execute: ${filename}`);
+    }
+}
+
+if (exportPrefixInput) {
+    try {
+        const storedPrefix = localStorage.getItem(EXPORT_PREFIX_STORAGE_KEY);
+        exportPrefixInput.value = storedPrefix === null ? DEFAULT_EXPORT_PREFIX : sanitizeFilenamePart(storedPrefix);
+    } catch (error) {
+        exportPrefixInput.value = DEFAULT_EXPORT_PREFIX;
+    }
+    exportPrefixInput.oninput = () => {
+        const sanitized = sanitizeFilenamePart(exportPrefixInput.value);
+        if (exportPrefixInput.value !== sanitized) exportPrefixInput.value = sanitized;
+        try { localStorage.setItem(EXPORT_PREFIX_STORAGE_KEY, sanitized); } catch (error) {}
+        updateExportFilenamePreview();
+    };
+}
+updateExportFilenamePreview();
+
 
 let stemFilters = {};
 let noiseFilters = { lowCut: null, highCut: null, deEsser: null, waveShaper: null }; 
@@ -223,7 +357,6 @@ let levelSilentGain = null;
 const playBtn = document.getElementById('play-btn');
 const loopBtn = document.getElementById('loop-btn');
 const upload = document.getElementById('audio-upload');
-const downloadBtn = document.getElementById('download-btn');
 const exportProgressPanel = document.getElementById('export-progress-panel');
 const exportProgressFill = document.getElementById('export-progress-fill');
 const exportProgressText = document.getElementById('export-progress-text');
@@ -316,6 +449,351 @@ function updateOutputLevelMeter() {
 
 setupOutputLevelMeter();
 
+function setupMasterEffectPanels() {
+    const target = document.getElementById('main-master-effects');
+    if (!target) return;
+    ['master-limiter-panel', 'master-reverb-panel', 'master-compressor-panel'].forEach((panelId) => {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        target.appendChild(panel);
+        panel.classList.add('main-effect-panel');
+        const header = panel.firstElementChild;
+        if (!header || header.classList.contains('effect-panel-header')) return;
+        header.classList.add('effect-panel-header');
+        const content = document.createElement('div');
+        content.className = 'effect-panel-content';
+        while (header.nextSibling) content.appendChild(header.nextSibling);
+        panel.appendChild(content);
+
+        const toggle = header.querySelector('button');
+        const actions = document.createElement('span');
+        actions.className = 'effect-panel-header-actions';
+        if (toggle) actions.appendChild(toggle);
+        const collapse = document.createElement('button');
+        collapse.type = 'button';
+        collapse.className = 'effect-collapse-btn';
+        collapse.setAttribute('aria-expanded', 'true');
+        collapse.setAttribute('aria-label', '패널 접기');
+        collapse.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+        collapse.onclick = () => {
+            const collapsed = !content.classList.contains('is-collapsed');
+            content.classList.toggle('is-collapsed', collapsed);
+            collapse.setAttribute('aria-expanded', String(!collapsed));
+            collapse.setAttribute('aria-label', collapsed ? '패널 펼치기' : '패널 접기');
+            collapse.innerHTML = `<i class="fa-solid fa-chevron-${collapsed ? 'down' : 'up'}"></i>`;
+            if (!collapsed) window.setTimeout(handleResize, 0);
+        };
+        actions.appendChild(collapse);
+        header.appendChild(actions);
+    });
+}
+
+setupMasterEffectPanels();
+
+function setupPlayerSignalLevel() {
+    const signalPanel = document.getElementById('signal-output-panel');
+    const transportVolume = document.querySelector('.transport-volume');
+    if (!signalPanel || !transportVolume) return;
+    signalPanel.classList.add('transport-signal-level');
+    transportVolume.appendChild(signalPanel);
+}
+
+setupPlayerSignalLevel();
+
+function setupResizableEffectGraphs() {
+    document.querySelectorAll('.effect-graph-resizer').forEach((resizer) => {
+        if (resizer.dataset.resizeBound === 'true') return;
+        const shell = document.getElementById(resizer.dataset.resizeTarget);
+        if (!shell) return;
+        const storageKey = resizer.dataset.resizeKey;
+        try {
+            const storedHeight = Number(localStorage.getItem(storageKey));
+            if (Number.isFinite(storedHeight) && storedHeight >= 176 && storedHeight <= 608) shell.style.height = `${storedHeight}px`;
+        } catch (error) {}
+        let startY = 0;
+        let startHeight = 0;
+        const redraw = () => {
+            reverb.updateReverbVisualizers?.();
+            compressor.drawCurve();
+        };
+        const finish = (event) => {
+            if (!resizer.classList.contains('is-resizing')) return;
+            resizer.classList.remove('is-resizing');
+            if (resizer.hasPointerCapture?.(event.pointerId)) resizer.releasePointerCapture(event.pointerId);
+            try { localStorage.setItem(storageKey, String(Math.round(shell.getBoundingClientRect().height))); } catch (error) {}
+            redraw();
+        };
+        resizer.onpointerdown = (event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            startY = event.clientY;
+            startHeight = shell.getBoundingClientRect().height;
+            resizer.classList.add('is-resizing');
+            resizer.setPointerCapture?.(event.pointerId);
+        };
+        resizer.onpointermove = (event) => {
+            if (!resizer.classList.contains('is-resizing')) return;
+            shell.style.height = `${Math.max(176, Math.min(608, startHeight + event.clientY - startY))}px`;
+            redraw();
+        };
+        resizer.onpointerup = finish;
+        resizer.onpointercancel = finish;
+        resizer.dataset.resizeBound = 'true';
+    });
+}
+
+const loudnessMomentary = document.getElementById('loudness-momentary');
+const loudnessShort = document.getElementById('loudness-short');
+const loudnessIntegrated = document.getElementById('loudness-integrated');
+const loudnessLra = document.getElementById('loudness-lra');
+const loudnessPeak = document.getElementById('loudness-peak');
+const loudnessMeterBars = {
+    momentary: document.getElementById('loudness-momentary-bar'),
+    shortTerm: document.getElementById('loudness-short-bar'),
+    integrated: document.getElementById('loudness-integrated-bar'),
+    lra: document.getElementById('loudness-lra-bar'),
+    peak: document.getElementById('loudness-peak-bar')
+};
+const loudnessTime = document.getElementById('loudness-time');
+const loudnessHistory = document.getElementById('loudness-history');
+const loudnessHistoryResizer = document.getElementById('loudness-history-resizer');
+const loudnessHistoryCard = loudnessHistory?.closest('.loudness-history-card');
+const loudnessResetBtn = document.getElementById('loudness-reset-btn');
+const loudnessCollapseBtn = document.getElementById('loudness-collapse-btn');
+const loudnessPanelContent = document.getElementById('loudness-panel-content');
+let loudnessSamples = [];
+let loudnessChartPoints = [];
+let loudnessTruePeak = 0;
+let loudnessLastSampleAt = 0;
+let loudnessEnergySum = 0;
+const LOUDNESS_HISTORY_HEIGHT_KEY = 'jd-loudness-history-height';
+
+function resetLoudnessStats() {
+    loudnessSamples = [];
+    loudnessChartPoints = [];
+    loudnessTruePeak = 0;
+    loudnessLastSampleAt = 0;
+    loudnessEnergySum = 0;
+    [loudnessMomentary, loudnessShort, loudnessIntegrated, loudnessLra, loudnessPeak].forEach((element) => {
+        if (element) element.innerText = '--';
+    });
+    Object.values(loudnessMeterBars).forEach((bar) => {
+        if (!bar) return;
+        bar.style.transform = 'scaleX(0)';
+        bar.parentElement?.removeAttribute('aria-valuenow');
+        bar.parentElement?.removeAttribute('aria-valuetext');
+    });
+    document.querySelectorAll('.target-row').forEach((row) => {
+        const diff = row.querySelector('em');
+        const status = row.querySelector('i');
+        if (diff) diff.innerText = '--';
+        if (status) { status.innerText = 'WAIT'; status.className = ''; }
+    });
+    drawLoudnessHistory();
+}
+
+function getAnalyserMetrics(analyser) {
+    if (!analyser) return { energy: 0, peak: 0 };
+    const samples = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(samples);
+    let energy = 0;
+    let peak = 0;
+    for (const sample of samples) {
+        energy += sample * sample;
+        peak = Math.max(peak, Math.abs(sample));
+    }
+    return { energy: energy / Math.max(1, samples.length), peak };
+}
+
+function energyToLufs(energy) {
+    return energy > 1e-12 ? -0.691 + (10 * Math.log10(energy)) : -Infinity;
+}
+
+function meanEnergy(samples) {
+    if (!samples.length) return 0;
+    return samples.reduce((sum, sample) => sum + sample.energy, 0) / samples.length;
+}
+
+function percentile(values, ratio) {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    return sorted[Math.max(0, Math.min(sorted.length - 1, Math.round((sorted.length - 1) * ratio)))];
+}
+
+function displayLoudness(element, value, decimals = 1) {
+    if (element) element.innerText = Number.isFinite(value) ? value.toFixed(decimals) : '-∞';
+}
+
+function displayLoudnessLevel(bar, value, min, max, unit) {
+    if (!bar) return;
+    const finiteValue = Number.isFinite(value) ? value : min;
+    const ratio = Math.max(0, Math.min(1, (finiteValue - min) / Math.max(0.001, max - min)));
+    bar.style.transform = `scaleX(${ratio.toFixed(4)})`;
+    const meter = bar.parentElement;
+    if (!meter) return;
+    meter.setAttribute('aria-valuenow', String(Number.isFinite(value) ? Number(value.toFixed(1)) : min));
+    meter.setAttribute('aria-valuetext', Number.isFinite(value) ? `${value.toFixed(1)} ${unit}` : `-infinity ${unit}`);
+}
+
+function updateStreamingTargets(integrated) {
+    document.querySelectorAll('.target-row').forEach((row) => {
+        const target = Number(row.dataset.targetLufs);
+        const adjustment = target - integrated;
+        const diff = row.querySelector('em');
+        const status = row.querySelector('i');
+        if (!Number.isFinite(integrated)) {
+            if (diff) diff.innerText = '--';
+            if (status) { status.innerText = 'WAIT'; status.className = ''; }
+            return;
+        }
+        if (diff) diff.innerText = `${adjustment > 0 ? '+' : ''}${adjustment.toFixed(1)} dB`;
+        if (status) {
+            const within = Math.abs(adjustment) <= 1;
+            status.innerText = within ? 'OK' : adjustment < 0 ? 'TOO LOUD' : 'QUIET';
+            status.className = within ? 'is-ok' : adjustment < 0 ? 'is-loud' : 'is-quiet';
+        }
+    });
+}
+
+function drawLoudnessHistory() {
+    if (!loudnessHistory) return;
+    const rect = loudnessHistory.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(240, Math.round(rect.width * dpr));
+    const height = Math.max(110, Math.round(rect.height * dpr));
+    if (loudnessHistory.width !== width) loudnessHistory.width = width;
+    if (loudnessHistory.height !== height) loudnessHistory.height = height;
+    const context = loudnessHistory.getContext('2d');
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = document.body.classList.contains('light-mode') ? '#f8fafc' : '#070c16';
+    context.fillRect(0, 0, width, height);
+    const pad = 22 * dpr;
+    const minDb = -48;
+    const maxDb = 0;
+    const yOf = (value) => pad + ((maxDb - Math.max(minDb, Math.min(maxDb, value))) / (maxDb - minDb)) * (height - pad * 1.4);
+    context.font = `${7 * dpr}px monospace`;
+    [-6, -14, -23, -36, -48].forEach((db) => {
+        const y = yOf(db);
+        context.strokeStyle = db === -14 ? 'rgba(34,197,94,.55)' : 'rgba(100,116,139,.18)';
+        context.setLineDash(db === -14 ? [4 * dpr, 3 * dpr] : []);
+        context.beginPath(); context.moveTo(pad, y); context.lineTo(width, y); context.stroke();
+        context.fillStyle = '#64748b'; context.fillText(String(db), 2 * dpr, y + 2 * dpr);
+    });
+    context.setLineDash([]);
+    const points = loudnessChartPoints.slice(-1200);
+    if (points.length < 2) return;
+    const drawLine = (key, color) => {
+        context.strokeStyle = color;
+        context.lineWidth = 1.2 * dpr;
+        context.beginPath();
+        points.forEach((point, index) => {
+            const x = pad + (index / Math.max(1, points.length - 1)) * (width - pad);
+            const y = yOf(point[key]);
+            if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+        });
+        context.stroke();
+    };
+    drawLine('momentary', '#eab308');
+    drawLine('shortTerm', '#f59e0b');
+    drawLine('integrated', '#38bdf8');
+}
+
+function updateMasterLoudnessMeter() {
+    const current = originalBuffer && audioCtx ? Math.max(0, Math.min(originalBuffer.duration, isPlaying ? audioCtx.currentTime - startTime : pausedAt)) : 0;
+    if (loudnessTime) loudnessTime.innerText = formatTime(current);
+    const now = performance.now();
+    if (!isPlaying || !levelLeftAnalyser || !levelRightAnalyser || now - loudnessLastSampleAt < 100) return;
+    loudnessLastSampleAt = now;
+    const left = getAnalyserMetrics(levelLeftAnalyser);
+    const right = getAnalyserMetrics(levelRightAnalyser);
+    const energy = (left.energy + right.energy) / 2;
+    loudnessTruePeak = Math.max(loudnessTruePeak, left.peak, right.peak);
+    loudnessSamples.push({ time: now, energy });
+    loudnessEnergySum += energy;
+    if (loudnessSamples.length > 108000) {
+        const removed = loudnessSamples.shift();
+        loudnessEnergySum -= removed.energy;
+    }
+    const recentSamples = (windowMs) => {
+        const result = [];
+        for (let index = loudnessSamples.length - 1; index >= 0; index--) {
+            const sample = loudnessSamples[index];
+            if (now - sample.time > windowMs) break;
+            result.push(sample);
+        }
+        return result;
+    };
+    const momentarySamples = recentSamples(400);
+    const shortSamples = recentSamples(3000);
+    const momentary = energyToLufs(meanEnergy(momentarySamples));
+    const shortTerm = energyToLufs(meanEnergy(shortSamples));
+    const integrated = energyToLufs(loudnessEnergySum / Math.max(1, loudnessSamples.length));
+    const shortValues = loudnessChartPoints.map((point) => point.shortTerm).filter(Number.isFinite);
+    const lra = shortValues.length >= 10 ? Math.max(0, percentile(shortValues, 0.95) - percentile(shortValues, 0.10)) : 0;
+    const peakDb = loudnessTruePeak > 0 ? 20 * Math.log10(loudnessTruePeak) : -Infinity;
+    displayLoudness(loudnessMomentary, momentary);
+    displayLoudness(loudnessShort, shortTerm);
+    displayLoudness(loudnessIntegrated, integrated);
+    displayLoudness(loudnessLra, lra);
+    displayLoudness(loudnessPeak, peakDb);
+    displayLoudnessLevel(loudnessMeterBars.momentary, momentary, -60, 0, 'LUFS');
+    displayLoudnessLevel(loudnessMeterBars.shortTerm, shortTerm, -60, 0, 'LUFS');
+    displayLoudnessLevel(loudnessMeterBars.integrated, integrated, -60, 0, 'LUFS');
+    displayLoudnessLevel(loudnessMeterBars.lra, lra, 0, 20, 'LU');
+    displayLoudnessLevel(loudnessMeterBars.peak, peakDb, -60, 3, 'dBTP');
+    loudnessChartPoints.push({ momentary, shortTerm, integrated });
+    if (loudnessChartPoints.length > 1200) loudnessChartPoints.shift();
+    updateStreamingTargets(integrated);
+    drawLoudnessHistory();
+}
+
+if (loudnessResetBtn) loudnessResetBtn.onclick = resetLoudnessStats;
+if (loudnessHistoryCard && loudnessHistoryResizer) {
+    try {
+        const storedHeight = Number(localStorage.getItem(LOUDNESS_HISTORY_HEIGHT_KEY));
+        if (Number.isFinite(storedHeight) && storedHeight >= 192 && storedHeight <= 672) {
+            loudnessHistoryCard.style.height = `${storedHeight}px`;
+        }
+    } catch (error) {}
+
+    let resizeStartY = 0;
+    let resizeStartHeight = 0;
+    const finishHistoryResize = (event) => {
+        if (!loudnessHistoryResizer.classList.contains('is-resizing')) return;
+        loudnessHistoryResizer.classList.remove('is-resizing');
+        if (loudnessHistoryResizer.hasPointerCapture?.(event.pointerId)) {
+            loudnessHistoryResizer.releasePointerCapture(event.pointerId);
+        }
+        try { localStorage.setItem(LOUDNESS_HISTORY_HEIGHT_KEY, String(Math.round(loudnessHistoryCard.getBoundingClientRect().height))); } catch (error) {}
+    };
+    loudnessHistoryResizer.onpointerdown = (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        resizeStartY = event.clientY;
+        resizeStartHeight = loudnessHistoryCard.getBoundingClientRect().height;
+        loudnessHistoryResizer.classList.add('is-resizing');
+        loudnessHistoryResizer.setPointerCapture?.(event.pointerId);
+    };
+    loudnessHistoryResizer.onpointermove = (event) => {
+        if (!loudnessHistoryResizer.classList.contains('is-resizing')) return;
+        const nextHeight = Math.max(192, Math.min(672, resizeStartHeight + (event.clientY - resizeStartY)));
+        loudnessHistoryCard.style.height = `${nextHeight}px`;
+        drawLoudnessHistory();
+    };
+    loudnessHistoryResizer.onpointerup = finishHistoryResize;
+    loudnessHistoryResizer.onpointercancel = finishHistoryResize;
+}
+if (loudnessCollapseBtn && loudnessPanelContent) {
+    loudnessCollapseBtn.onclick = () => {
+        const collapsed = !loudnessPanelContent.classList.contains('is-collapsed');
+        loudnessPanelContent.classList.toggle('is-collapsed', collapsed);
+        loudnessCollapseBtn.setAttribute('aria-expanded', String(!collapsed));
+        loudnessCollapseBtn.innerHTML = `<i class="fa-solid fa-chevron-${collapsed ? 'down' : 'up'}"></i>`;
+        if (!collapsed) drawLoudnessHistory();
+    };
+}
+resetLoudnessStats();
+
 // Bind file selection and drag-and-drop before the rest of the workstation UI initializes.
 // This keeps uploading operational even if an unrelated panel fails later during startup.
 initAudioUpload({
@@ -328,6 +806,7 @@ initAudioUpload({
         return audioCtx;
     },
     onLoading: () => {
+        resetLoudnessStats();
         trackName.innerText = 'AI 멀티 세션 트랙 스펙트럼 분석 중...';
         detectorStatus.innerText = '(분석 연산 중)';
     },
@@ -1104,6 +1583,9 @@ compressor.updateUI(updateCompressorRangeFills);
 limiter.updateUI(updateCompressorRangeFills);
 bindLiveControlTriggers();
 bindSpatialControls();
+reverb.initVisualizers(updateCompressorRangeFills);
+compressor.initGraphInteraction(updateCompressorRangeFills);
+setupResizableEffectGraphs();
 
 // Load upload activation preference configurations
 const cfgSeekBar = document.getElementById('cfg-seek-bar');
@@ -1127,6 +1609,7 @@ if (cfgTubeExciter) {
 // Master Reset console
 document.getElementById('reset-all-btn').onclick = () => {
     executeBypassRouting(true);
+    resetLoudnessStats();
     audioState.eq = [0,0,0,0,0,0,0,0,0,0];
     audioState.eqEnabled = false;
     audioState.stemsEnabled = false;
@@ -1297,8 +1780,10 @@ function syncStemsUI() {
 
 // Audio upload completion: keep workstation-specific state in the main application.
 function handleDecodedAudio(file, buffer) {
+    resetLoudnessStats();
     currentAudioFileBlob = file;
     currentAudioFileName = file.name;
+    updateExportFilenamePreview();
     originalBuffer = buffer;
     sectionRepeatEnabled = false;
     sectionRepeatInitialized = false;
@@ -1430,7 +1915,8 @@ async function startPlaybackAt(offset = 0) {
 
     const finalizedOutput = await compileAudioGraph(audioCtx, sourceNode);
     analyserNode = audioCtx.createAnalyser();
-    analyserNode.fftSize = 512;
+    analyserNode.fftSize = 2048;
+    analyserNode.smoothingTimeConstant = 0.78;
 
     finalizedOutput.connect(analyserNode);
     analyserNode.connect(audioCtx.destination);
@@ -1625,6 +2111,7 @@ if (exportCancelBtn) {
 
 downloadBtn.onclick = async () => {
     if (!originalBuffer || activeExportJob) return;
+    const exportFilename = getMasteredExportFilename();
 
     const job = {
         id: Date.now(),
@@ -1673,7 +2160,7 @@ downloadBtn.onclick = async () => {
         const url = URL.createObjectURL(wavBlob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = "AI_HiRes_Mastered_Output.wav";
+        link.download = exportFilename;
         link.click();
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
@@ -1692,9 +2179,126 @@ downloadBtn.onclick = async () => {
     }
 };
 
+function formatSpectrumFrequency(frequency) {
+    if (frequency >= 1000) {
+        const kilo = frequency / 1000;
+        return `${kilo >= 10 ? Math.round(kilo) : kilo.toFixed(1).replace('.0', '')}k`;
+    }
+    return String(Math.round(frequency));
+}
+
+function collectSpectrumBands(dataArray, count) {
+    const sampleRate = analyserNode?.context?.sampleRate || 48000;
+    const fftSize = analyserNode?.fftSize || dataArray.length * 2;
+    const binHz = sampleRate / fftSize;
+    const minHz = 31.5;
+    const maxHz = Math.min(20000, sampleRate / 2);
+    const ratio = maxHz / minHz;
+
+    return Array.from({ length: count }, (_, index) => {
+        const startHz = minHz * Math.pow(ratio, index / count);
+        const endHz = minHz * Math.pow(ratio, (index + 1) / count);
+        const startBin = Math.max(1, Math.min(dataArray.length - 1, Math.floor(startHz / binHz)));
+        const endBin = Math.max(startBin + 1, Math.min(dataArray.length, Math.ceil(endHz / binHz)));
+        let peak = 0;
+        let energy = 0;
+        let samples = 0;
+        for (let bin = startBin; bin < endBin; bin++) {
+            const value = dataArray[bin];
+            peak = Math.max(peak, value);
+            energy += value * value;
+            samples++;
+        }
+        const rms = Math.sqrt(energy / Math.max(1, samples));
+        return {
+            frequency: Math.sqrt(startHz * endHz),
+            percent: Math.min(1, ((peak * 0.72) + (rms * 0.28)) / 255)
+        };
+    });
+}
+
+function drawSpectrumFrequencyLabels(bands) {
+    const labelStep = Math.max(1, Math.ceil(bands.length / 10));
+    ctx.save();
+    ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1e293b' : '#64748b';
+    ctx.font = '8px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    bands.forEach((band, index) => {
+        if (index % labelStep !== 0 && index !== bands.length - 1) return;
+        const x = ((index + 0.5) / bands.length) * canvas.width;
+        ctx.fillText(formatSpectrumFrequency(band.frequency), x, 10);
+    });
+    ctx.restore();
+}
+
+function drawBarSpectrum(bands) {
+    const slotWidth = canvas.width / bands.length;
+    const gap = Math.max(1, Math.min(4, slotWidth * 0.16));
+    const barWidth = Math.max(1, slotWidth - gap);
+    bands.forEach((band, index) => {
+        const barHeight = band.percent * (canvas.height - 16);
+        const x = (index * slotWidth) + (gap / 2);
+        const y = canvas.height - barHeight;
+        const gradient = ctx.createLinearGradient(0, y, 0, canvas.height);
+        gradient.addColorStop(0, '#f43f5e');
+        gradient.addColorStop(0.4, '#fbbf24');
+        gradient.addColorStop(1, '#10b981');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, barWidth, barHeight);
+    });
+    drawSpectrumFrequencyLabels(bands);
+}
+
+function drawWaveSpectrum(bands) {
+    const points = bands.map((band, index) => ({
+        x: ((index + 0.5) / bands.length) * canvas.width,
+        y: canvas.height - (band.percent * (canvas.height - 18))
+    }));
+    if (!points.length) return;
+
+    const fillGradient = ctx.createLinearGradient(0, 12, 0, canvas.height);
+    fillGradient.addColorStop(0, 'rgba(244,63,94,.58)');
+    fillGradient.addColorStop(0.42, 'rgba(251,191,36,.36)');
+    fillGradient.addColorStop(1, 'rgba(16,185,129,.08)');
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, canvas.height);
+    points.forEach((point) => ctx.lineTo(point.x, point.y));
+    ctx.lineTo(points[points.length - 1].x, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = fillGradient;
+    ctx.fill();
+
+    const lineGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    lineGradient.addColorStop(0, '#10b981');
+    lineGradient.addColorStop(0.55, '#22d3ee');
+    lineGradient.addColorStop(1, '#fb7185');
+    ctx.beginPath();
+    points.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+    });
+    ctx.strokeStyle = lineGradient;
+    ctx.lineWidth = 2.2;
+    ctx.shadowColor = 'rgba(34,211,238,.65)';
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    if (bands.length <= 32) {
+        ctx.fillStyle = '#e0f2fe';
+        points.forEach((point) => {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 1.6, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+    drawSpectrumFrequencyLabels(bands);
+}
+
 function animateSpectrum() {
     requestAnimationFrame(animateSpectrum);
     updateOutputLevelMeter();
+    updateMasterLoudnessMeter();
     if(!canvas || !ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1719,40 +2323,11 @@ function animateSpectrum() {
     const bufferLength = analyserNode.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyserNode.getByteFrequencyData(dataArray);
+    const spectrumBands = collectSpectrumBands(dataArray, spectrumBandCount);
+    if (spectrumViewMode === 'wave') drawWaveSpectrum(spectrumBands);
+    else drawBarSpectrum(spectrumBands);
 
-    const barWidth = (canvas.width / 10) - 4;
-    let sumRMS = 0;
-
-    for (let i = 0; i < 10; i++) {
-        const startIdx = Math.floor((i / 10) * (bufferLength * 0.6));
-        const endIdx = Math.floor(((i + 1) / 10) * (bufferLength * 0.6));
-        let maxVal = 0;
-        
-        for(let j = startIdx; j < endIdx; j++) {
-            if(dataArray[j] > maxVal) maxVal = dataArray[j];
-        }
-
-        const percent = maxVal / 255;
-        sumRMS += percent * percent;
-        
-        const barHeight = percent * (canvas.height - 15);
-        const x = i * (canvas.width / 10) + 2;
-        const y = canvas.height - barHeight;
-
-        let grad = ctx.createLinearGradient(0, y, 0, canvas.height);
-        grad.addColorStop(0, '#f43f5e');  
-        grad.addColorStop(0.4, '#fbbf24'); 
-        grad.addColorStop(1, '#10b981');   
-
-        ctx.fillStyle = grad;
-        ctx.fillRect(x, y, barWidth, barHeight);
-
-        ctx.fillStyle = document.body.classList.contains('light-mode') ? '#1e293b' : '#475569';
-        ctx.font = '8px monospace';
-        ctx.fillText(eqLabels[i], x + 2, 10);
-    }
-
-    const rms = Math.sqrt(sumRMS / 10);
+    const rms = Math.sqrt(spectrumBands.reduce((sum, band) => sum + (band.percent * band.percent), 0) / Math.max(1, spectrumBands.length));
     const dbLevel = Math.round(20 * Math.log10(rms + 0.0001));
     const displayPercent = Math.max(0, Math.min(100, (dbLevel + 40) * 2.5)); 
 
@@ -1778,7 +2353,9 @@ function handleResize() {
     canvas.width = canvas.parentElement.clientWidth - 40;
     canvas.height = 140;
     compressor.drawCurve();
+    reverb.updateReverbVisualizers?.();
     drawAudioWaveform(waveformProgress);
+    drawLoudnessHistory();
 }
 
 window.addEventListener('resize', handleResize);
@@ -2047,6 +2624,7 @@ if (dbLoadSelect) {
             if (project.audioBlob) {
                 currentAudioFileBlob = project.audioBlob;
                 currentAudioFileName = project.audioFileName || "Loaded Project Audio";
+                updateExportFilenamePreview();
                 trackName.innerText = `곡명: ${currentAudioFileName}`;
                 
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -2055,6 +2633,7 @@ if (dbLoadSelect) {
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     audioCtx.decodeAudioData(evt.target.result, function(buffer) {
+                        resetLoudnessStats();
                         originalBuffer = buffer;
                         sectionRepeatEnabled = false;
                         sectionRepeatInitialized = false;

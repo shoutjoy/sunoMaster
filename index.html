@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260628-12">
+    <link rel="stylesheet" href="index.css?v=20260628-22">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-6">
 </head>
 
@@ -47,15 +47,15 @@
                     <button id="download-btn"
                         class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_22px_rgba(16,185,129,0.55)] hover:shadow-[0_0_30px_rgba(52,211,153,0.72)] disabled:opacity-55 disabled:cursor-not-allowed"
                         disabled>
-                        <i class="fa-solid fa-download"></i> 무손실 WAV 내보내기
+                        <i class="fa-solid fa-download"></i> Mastering Data Execute
                     </button>
                     <button id="player-settings-btn" type="button" aria-expanded="false" aria-controls="player-settings-menu"
                         class="ml-auto bg-gray-800 hover:bg-gray-700 text-gray-300 w-10 h-10 rounded-xl transition flex items-center justify-center border border-gray-700"
-                        title="플레이바 설정" aria-label="플레이바 설정">
+                        title="플레이어 및 내보내기 설정" aria-label="플레이어 및 내보내기 설정">
                         <i class="fa-solid fa-gear"></i>
                     </button>
                 </div>
-                <div id="player-settings-menu" class="player-settings-menu hidden" role="dialog" aria-label="플레이바 표시 설정">
+                <div id="player-settings-menu" class="player-settings-menu hidden" role="dialog" aria-label="플레이어 및 내보내기 설정">
                     <div class="player-settings-title"><i class="fa-solid fa-sliders"></i> 플레이바 위치</div>
                     <label>
                         <input id="player-mode-inner" type="radio" name="player-mode" value="inner" checked>
@@ -65,6 +65,23 @@
                         <input id="player-mode-float" type="radio" name="player-mode" value="float">
                         <span><b>Float</b><small>화면 하단에 전역 고정</small></span>
                     </label>
+                    <div class="player-settings-divider"></div>
+                    <div class="player-settings-title"><i class="fa-solid fa-eye"></i> 화면 표시</div>
+                    <label>
+                        <input id="setting-show-stem-console" type="checkbox">
+                        <span><b>AI 20-Channel 분리</b><small>필요할 때만 콘솔 표시 · 기본 숨김</small></span>
+                    </label>
+                    <div class="spectrum-band-setting">
+                        <label for="spectrum-band-count"><b>FFT 주파수 밴드</b><small>8–64개 · 기본 20개</small></label>
+                        <input id="spectrum-band-count" type="number" min="8" max="64" step="1" value="20" inputmode="numeric">
+                    </div>
+                    <div class="player-settings-divider"></div>
+                    <div class="player-settings-title"><i class="fa-solid fa-file-waveform"></i> WAV 내보내기 파일명</div>
+                    <div class="export-prefix-setting">
+                        <label for="export-prefix-input"><b>Prefix</b><small>원본 파일명 앞에 붙일 텍스트</small></label>
+                        <input id="export-prefix-input" type="text" value="mastered_" maxlength="40" spellcheck="false" autocomplete="off" aria-describedby="export-filename-preview">
+                        <small id="export-filename-preview" class="export-filename-preview">mastered_audio.wav</small>
+                    </div>
                 </div>
                 <div id="export-progress-panel"
                     class="hidden w-full sm:max-w-md rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2 shadow-lg shadow-emerald-500/10">
@@ -211,6 +228,10 @@
                             class="text-[10px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded font-mono font-bold tracking-wider">REAL-TIME
                             FFT OCTAVE ANALYSER</span>
                         <div class="flex items-center gap-1.5">
+                            <div class="spectrum-view-switch" role="group" aria-label="FFT 표시 방식">
+                                <button id="spectrum-bars-btn" type="button" class="spectrum-view-btn is-active" aria-pressed="true">BAR</button>
+                                <button id="spectrum-wave-btn" type="button" class="spectrum-view-btn" aria-pressed="false">WAVE</button>
+                            </div>
                             <span class="text-[9px] font-mono text-gray-400">CLIP</span>
                             <div id="clip-led"
                                 class="w-2.5 h-2.5 bg-gray-900 rounded-full border border-gray-900 transition-all duration-75">
@@ -224,8 +245,39 @@
                         Waiting for audio source signal...</div>
                 </div>
 
+                <section id="master-loudness-panel" class="loudness-panel">
+                    <div class="loudness-panel-header">
+                        <h3><i class="fa-solid fa-chart-column"></i> MASTER LOUDNESS METER</h3>
+                        <button id="loudness-collapse-btn" type="button" aria-expanded="true" aria-controls="loudness-panel-content" title="접기/펼치기"><i class="fa-solid fa-chevron-up"></i></button>
+                    </div>
+                    <div id="loudness-panel-content" class="loudness-panel-content">
+                        <div class="loudness-primary-grid">
+                            <div class="loudness-metric-row"><span>Momentary<small>400ms</small></span><strong id="loudness-momentary">--</strong><em>LUFS</em><div class="loudness-level-meter meter-momentary has-target" role="progressbar" aria-label="Momentary loudness level" aria-valuemin="-60" aria-valuemax="0"><div id="loudness-momentary-bar" class="loudness-level-fill"></div></div></div>
+                            <div class="loudness-metric-row"><span>Short-term<small>3.0s</small></span><strong id="loudness-short">--</strong><em>LUFS</em><div class="loudness-level-meter meter-short has-target" role="progressbar" aria-label="Short-term loudness level" aria-valuemin="-60" aria-valuemax="0"><div id="loudness-short-bar" class="loudness-level-fill"></div></div></div>
+                            <div class="loudness-metric-row"><span>Integrated<small>전체</small></span><strong id="loudness-integrated">--</strong><em>LUFS</em><div class="loudness-level-meter meter-integrated has-target" role="progressbar" aria-label="Integrated loudness level" aria-valuemin="-60" aria-valuemax="0"><div id="loudness-integrated-bar" class="loudness-level-fill"></div></div></div>
+                            <div class="loudness-metric-row"><span>Loudness Range<small>Approx</small></span><strong id="loudness-lra">--</strong><em>LU</em><div class="loudness-level-meter meter-lra" role="progressbar" aria-label="Loudness range level" aria-valuemin="0" aria-valuemax="20"><div id="loudness-lra-bar" class="loudness-level-fill"></div></div></div>
+                            <div class="loudness-metric-row"><span>True Peak<small>Approx</small></span><strong id="loudness-peak">--</strong><em>dBTP</em><div class="loudness-level-meter meter-peak has-peak-limit" role="progressbar" aria-label="True peak level" aria-valuemin="-60" aria-valuemax="3"><div id="loudness-peak-bar" class="loudness-level-fill"></div></div></div>
+                            <div class="loudness-time"><span>Time</span><strong id="loudness-time">00:00</strong></div>
+                        </div>
+                        <div class="loudness-history-card">
+                            <div class="loudness-subhead"><span>LOUDNESS HISTORY</span><small>최근 120초</small></div>
+                            <canvas id="loudness-history" height="150"></canvas>
+                            <div class="loudness-legend"><span class="momentary">Momentary</span><span class="short">Short-term</span><span class="integrated">Integrated</span></div>
+                            <button id="loudness-history-resizer" type="button" class="loudness-history-resizer" aria-label="Loudness History 높이 조절" title="위아래로 드래그하여 그래프 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
+                        </div>
+                        <div class="loudness-targets">
+                            <div class="loudness-subhead"><span>STREAMING TARGETS</span><small>Normalization</small></div>
+                            <div class="target-row" data-target-lufs="-14"><span>Spotify</span><b>-14 LUFS</b><em>--</em><i>WAIT</i></div>
+                            <div class="target-row" data-target-lufs="-14"><span>YouTube</span><b>-14 LUFS</b><em>--</em><i>WAIT</i></div>
+                            <div class="target-row" data-target-lufs="-16"><span>Apple Music</span><b>-16 LUFS</b><em>--</em><i>WAIT</i></div>
+                            <div class="target-row" data-target-lufs="-14"><span>Amazon Music</span><b>-14 LUFS</b><em>--</em><i>WAIT</i></div>
+                        </div>
+                        <div class="loudness-footer"><span>BS.1770-style estimate · True Peak/LRA Approx</span><button id="loudness-reset-btn" type="button"><i class="fa-solid fa-rotate"></i> RESET</button></div>
+                    </div>
+                </section>
+
                 <div class="bg-[#090d16] p-4 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
-                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
+                    <div id="signal-output-panel" class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-1">
                         <div class="flex justify-between text-[10px] font-mono text-gray-400"><span>SIGNAL OUTPUT LEVEL
                                 (LUFS/RMS)</span><span id="lufs-text">-inf dB</span></div>
                         <div
@@ -236,7 +288,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
+                    <div id="master-reverb-panel" class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
                             <span class="text-violet-400 text-[11px]"><i class="fa-solid fa-wave-square mr-1"></i>
                                 MASTER REVERB</span>
@@ -253,6 +305,18 @@
                                     class="min-w-0 w-full sm:w-24 bg-gray-900 border border-gray-800 rounded-lg px-2 py-1.5 text-[11px] text-gray-300 outline-none">
                                 <button id="reverb-template-save" type="button"
                                     class="bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition">SAVE</button>
+                            </div>
+                        </div>
+                        <div class="reverb-visual-grid">
+                            <div id="reverb-envelope-shell" class="effect-graph-shell reverb-visual-panel">
+                                <div class="effect-graph-head"><span>REVERB ENVELOPE</span><small>핸들을 드래그해 조절</small></div>
+                                <canvas id="reverb-envelope-canvas" aria-label="리버브 엔벨로프 조절 그래프"></canvas>
+                                <div class="reverb-visual-footer"><span>ER</span><span>TAIL</span></div>
+                                <button type="button" class="effect-graph-resizer" data-resize-target="reverb-envelope-shell" data-resize-key="jd-reverb-graph-height" aria-label="리버브 그래프 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
+                            </div>
+                            <div class="reverb-eq-panel">
+                                <div class="effect-graph-head"><span>REVERB EQ</span><small>Low / High 드래그</small></div>
+                                <canvas id="reverb-eq-canvas" aria-label="리버브 EQ 조절 그래프"></canvas>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
@@ -307,7 +371,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
+                    <div id="master-compressor-panel" class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
                             <span class="text-cyan-400 text-[11px]"><i class="fa-solid fa-compress mr-1.5"></i> MASTER
                                 COMPRESSOR</span>
@@ -324,8 +388,10 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-gray-900 rounded-lg border border-gray-800 p-2">
+                        <div id="compressor-graph-shell" class="effect-graph-shell compressor-graph-shell bg-gray-900 rounded-lg border border-gray-800 p-2">
+                            <div class="effect-graph-head"><span>TRANSFER CURVE</span><small>가로 Threshold · 세로 Ratio</small></div>
                             <canvas id="comp-curve" class="w-full h-44 block"></canvas>
+                            <button type="button" class="effect-graph-resizer" data-resize-target="compressor-graph-shell" data-resize-key="jd-compressor-graph-height" aria-label="컴프레서 그래프 높이 조절"><i class="fa-solid fa-grip-lines"></i></button>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                             <select id="comp-template-select"
@@ -455,7 +521,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
+                    <div id="master-limiter-panel" class="bg-[#03050a] p-2.5 rounded-xl border border-gray-800 space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold">
                             <span class="text-lime-400 text-[11px]"><i class="fa-solid fa-gauge-high mr-1"></i>
                                 LOOKAHEAD LIMITER</span>
@@ -618,6 +684,9 @@
                         </div>
 
                         <div class="transport-spatial">
+                            <button id="player-float-toggle" type="button" class="player-float-toggle" aria-pressed="false" title="플레이바 플로팅" aria-label="플레이바 플로팅">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </button>
                             <label for="pan-control"><span>Pan</span><output id="pan-val">C</output></label>
                             <div class="spatial-control-row">
                                 <button type="button" data-spatial-target="pan-control" data-spatial-delta="-1" aria-label="Pan 감소">−</button>
@@ -649,8 +718,10 @@
                     </div>
                 </div>
 
+                <div id="main-master-effects" class="main-master-effects" aria-label="마스터 이펙터"></div>
+
                 <!-- AI 20-Channel Stem Automator Console (접히는 기능) -->
-                <div class="bg-[#090d16] p-5 rounded-2xl border border-gray-800 space-y-3 shadow-xl">
+                <div id="stem-console-section" class="bg-[#090d16] p-5 rounded-2xl border border-gray-800 space-y-3 shadow-xl" hidden>
                     <div class="flex justify-between items-center border-b border-gray-800 pb-2">
                         <h3 class="text-sm font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-server text-purple-400"></i> AI 20-Channel Stem Automator Console
@@ -714,11 +785,11 @@
     </div>
 
     <script src="effector/EQ/eq.js?v=20260628-6"></script>
-    <script src="effector/reverb/reverb.js?v=20260628-6"></script>
-    <script src="effector/Compressor/compressor.js?v=20260628-6"></script>
+    <script src="effector/reverb/reverb.js?v=20260628-18"></script>
+    <script src="effector/Compressor/compressor.js?v=20260628-20"></script>
     <script src="effector/limitor/limiter.js?v=20260628-6"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260628-6"></script>
-    <script src="index.js?v=20260628-12"></script>
+    <script src="index.js?v=20260628-25"></script>
 </body>
 
 </html>

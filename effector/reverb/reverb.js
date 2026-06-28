@@ -25,6 +25,11 @@ class ReverbEffector {
             lowShelf: null,
             highShelf: null
         };
+        this.visual = null;
+        this.visualBound = false;
+        this.graphDrag = null;
+        this.liveBinding = null;
+        this.updateRangeFillCallback = null;
     }
 
     getCustomPresets() {
@@ -190,9 +195,265 @@ class ReverbEffector {
         if (updateRangeFillCallback) {
             updateRangeFillCallback();
         }
+        this.updateReverbVisualizers();
+    }
+
+    initVisualizers(updateRangeFillCallback) {
+        this.updateRangeFillCallback = updateRangeFillCallback || this.updateRangeFillCallback;
+        this.visual = {
+            envelopeCanvas: document.getElementById('reverb-envelope-canvas'),
+            eqCanvas: document.getElementById('reverb-eq-canvas'),
+            envelopeHandles: [],
+            eqHandles: [],
+            envelopeLayout: null,
+            eqLayout: null
+        };
+        if (!this.visualBound) {
+            this.bindEnvelopeGraph();
+            this.bindEqGraph();
+            this.visualBound = true;
+        }
+        this.updateReverbVisualizers();
+    }
+
+    canvasContext(canvas) {
+        if (!canvas) return null;
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+            canvas.width = Math.round(width * dpr);
+            canvas.height = Math.round(height * dpr);
+        }
+        const context = canvas.getContext('2d');
+        context.setTransform(dpr, 0, 0, dpr, 0, 0);
+        context.clearRect(0, 0, width, height);
+        return { context, width, height };
+    }
+
+    drawGrid(context, width, height, columns = 5, rows = 4) {
+        context.strokeStyle = 'rgba(120,150,180,0.13)';
+        context.lineWidth = 1;
+        for (let i = 0; i <= columns; i++) {
+            const x = width * i / columns;
+            context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
+        }
+        for (let i = 0; i <= rows; i++) {
+            const y = height * i / rows;
+            context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+        }
+    }
+
+    drawHandle(context, x, y, color) {
+        context.save();
+        context.shadowColor = color;
+        context.shadowBlur = 8;
+        context.fillStyle = '#071019';
+        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.beginPath(); context.arc(x, y, 5, 0, Math.PI * 2); context.fill(); context.stroke();
+        context.restore();
+    }
+
+    updateReverbVisualizers() {
+        if (!this.visual) return;
+        this.drawReverbEnvelope();
+        this.drawReverbEq();
+    }
+
+    drawReverbEnvelope() {
+        const result = this.canvasContext(this.visual?.envelopeCanvas);
+        if (!result) return;
+        const { context, width, height } = result;
+        this.drawGrid(context, width, height);
+        const rvb = this.audioState.reverb;
+        const preDelaySec = Math.max(0, rvb.preDelay) / 1000;
+        const decay = Math.max(0.3, rvb.decay);
+        const diffusion = Math.max(0, Math.min(100, rvb.diffusion));
+        const mix = Math.max(0, Math.min(100, rvb.mix));
+        const maxTime = Math.max(4, Math.ceil(preDelaySec + decay));
+        const x0 = 18;
+        const top = 16;
+        const baseY = height - 20;
+        const graphW = Math.max(20, width - 36);
+        const graphH = Math.max(20, baseY - top);
+        const preX = x0 + (Math.max(0, Math.min(150, rvb.preDelay)) / 150) * Math.min(graphW * 0.22, 80);
+        const tailGraphW = graphW - (preX - x0);
+        const density = 1.15 + (diffusion / 100) * 1.65;
+        const endX = preX + (decay / maxTime) * tailGraphW;
+        const middleP = 0.45;
+        const middleX = preX + (decay * middleP / maxTime) * tailGraphW;
+        const middleY = baseY - Math.pow(1 - middleP, density) * graphH * 0.86;
+
+        context.fillStyle = 'rgba(0,210,255,0.12)';
+        context.fillRect(x0, top, Math.max(2, preX - x0), graphH);
+        const gradient = context.createLinearGradient(0, top, 0, baseY);
+        gradient.addColorStop(0, 'rgba(255,180,36,.95)');
+        gradient.addColorStop(1, 'rgba(255,80,20,.10)');
+        context.beginPath(); context.moveTo(preX, baseY);
+        for (let i = 0; i <= 240; i++) {
+            const p = i / 240;
+            const x = preX + (decay * p / maxTime) * tailGraphW;
+            const y = baseY - Math.pow(1 - p, density) * graphH * 0.86;
+            context.lineTo(x, y);
+        }
+        context.lineTo(endX, baseY); context.closePath(); context.fillStyle = gradient; context.fill();
+        context.strokeStyle = '#ffae23'; context.lineWidth = 2; context.beginPath();
+        for (let i = 0; i <= 240; i++) {
+            const p = i / 240;
+            const x = preX + (decay * p / maxTime) * tailGraphW;
+            const y = baseY - Math.pow(1 - p, density) * graphH * 0.86;
+            if (!i) context.moveTo(x, y); else context.lineTo(x, y);
+        }
+        context.stroke();
+        const erCount = Math.round(6 + diffusion / 6);
+        for (let i = 0; i < erCount; i++) {
+            const p = i / Math.max(1, erCount - 1);
+            const x = preX + 5 + p * Math.min(graphW * 0.28, 125);
+            const barHeight = (1 - p * 0.8) * graphH * (0.35 + ((i * 37) % 10) / 20);
+            context.fillStyle = 'rgba(250,204,21,.8)'; context.fillRect(x, baseY - barHeight, 2, barHeight);
+        }
+        context.fillStyle = `rgba(160,90,255,${0.03 + mix / 1000})`; context.fillRect(x0, top, graphW, graphH);
+        const preY = baseY - graphH * 0.86;
+        this.drawHandle(context, preX, preY, '#22d3ee');
+        this.drawHandle(context, middleX, middleY, '#ffb020');
+        this.drawHandle(context, endX, baseY - 5, '#c084fc');
+        context.fillStyle = '#94a3b8'; context.font = '9px monospace';
+        context.fillText(`Pre ${Math.round(rvb.preDelay)}ms`, x0 + 2, height - 5);
+        context.fillText(`Decay ${decay.toFixed(1)}s`, Math.max(x0 + 70, width - 150), height - 5);
+        this.visual.envelopeHandles = [
+            { type: 'preDelay', x: preX, y: preY },
+            { type: 'shape', x: middleX, y: middleY },
+            { type: 'tail', x: endX, y: baseY - 5 }
+        ];
+        this.visual.envelopeLayout = { x0, top, baseY, graphW, graphH, maxTime, preX, tailGraphW };
+    }
+
+    drawReverbEq() {
+        const result = this.canvasContext(this.visual?.eqCanvas);
+        if (!result) return;
+        const { context, width, height } = result;
+        this.drawGrid(context, width, height, 6, 4);
+        const rvb = this.audioState.reverb;
+        const padX = 16;
+        const top = 14;
+        const graphW = Math.max(20, width - 32);
+        const graphH = Math.max(20, height - 32);
+        const centerY = top + graphH / 2;
+        const gainToY = (gain) => centerY - gain * (graphH / 24);
+        const freqToX = (freq) => padX + ((Math.log10(freq) - Math.log10(16)) / (Math.log10(16000) - Math.log10(16))) * graphW;
+        const curve = [];
+        for (let i = 0; i <= 180; i++) {
+            const p = i / 180;
+            const freq = Math.pow(10, Math.log10(16) + p * (Math.log10(16000) - Math.log10(16)));
+            const lowShape = 1 / (1 + Math.pow(freq / 250, 2));
+            const highShape = 1 / (1 + Math.pow(4000 / freq, 2));
+            curve.push({ x: padX + p * graphW, y: gainToY(rvb.lowGain * lowShape + rvb.highGain * highShape) });
+        }
+        context.beginPath(); context.moveTo(curve[0].x, centerY); curve.forEach((point) => context.lineTo(point.x, point.y)); context.lineTo(curve[curve.length - 1].x, centerY); context.closePath();
+        context.fillStyle = 'rgba(0,210,255,.15)'; context.fill();
+        context.beginPath(); curve.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y)); context.strokeStyle = '#18d4ff'; context.lineWidth = 2; context.stroke();
+        const lowX = freqToX(250); const highX = freqToX(4000);
+        const lowY = gainToY(rvb.lowGain); const highY = gainToY(rvb.highGain);
+        this.drawHandle(context, lowX, lowY, '#ffb020'); this.drawHandle(context, highX, highY, '#25d0ff');
+        this.visual.eqHandles = [{ type: 'lowGain', x: lowX, y: lowY }, { type: 'highGain', x: highX, y: highY }];
+        this.visual.eqLayout = { top, graphH, centerY };
+    }
+
+    setGraphValue(key, value, rebuildImpulse = false, final = false) {
+        const inputIds = { preDelay: 'reverb-predelay', decay: 'reverb-decay', diffusion: 'reverb-diffusion', mix: 'reverb-mix', lowGain: 'reverb-low', highGain: 'reverb-high' };
+        const input = document.getElementById(inputIds[key]);
+        if (!input) return;
+        const min = Number(input.min); const max = Number(input.max); const step = Number(input.step || 1);
+        const precision = Math.max(0, (String(input.step).split('.')[1] || '').length);
+        const clamped = Math.max(min, Math.min(max, value));
+        const stepped = Math.round(clamped / step) * step;
+        this.audioState.reverb[key] = Number(stepped.toFixed(precision));
+        input.value = String(this.audioState.reverb[key]);
+        this.updateUI(this.updateRangeFillCallback);
+        const binding = this.liveBinding;
+        if (binding?.getPlayStateCallback?.()) this.applySettings(binding.context, binding.getBypassStateCallback, rebuildImpulse && final);
+    }
+
+    nearestHandle(handles, x, y) {
+        return handles.reduce((nearest, handle) => {
+            const distance = Math.hypot(handle.x - x, handle.y - y);
+            return !nearest || distance < nearest.distance ? { ...handle, distance } : nearest;
+        }, null);
+    }
+
+    pointerPosition(canvas, event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    bindEnvelopeGraph() {
+        const canvas = this.visual?.envelopeCanvas;
+        if (!canvas) return;
+        canvas.onpointerdown = (event) => {
+            if (event.button !== 0) return;
+            const point = this.pointerPosition(canvas, event);
+            const handle = this.nearestHandle(this.visual.envelopeHandles, point.x, point.y);
+            this.graphDrag = { canvas, type: handle?.type || 'shape', pointerId: event.pointerId };
+            canvas.setPointerCapture?.(event.pointerId);
+            event.preventDefault();
+        };
+        canvas.onpointermove = (event) => {
+            if (!this.graphDrag || this.graphDrag.canvas !== canvas) return;
+            const point = this.pointerPosition(canvas, event);
+            const layout = this.visual.envelopeLayout;
+            const time = ((point.x - layout.preX) / layout.tailGraphW) * layout.maxTime;
+            if (this.graphDrag.type === 'preDelay') {
+                const preDelay = ((point.x - layout.x0) / Math.min(layout.graphW * 0.22, 80)) * 150;
+                this.setGraphValue('preDelay', preDelay);
+            }
+            else {
+                this.setGraphValue('decay', time - this.audioState.reverb.preDelay / 1000);
+                const vertical = Math.max(0, Math.min(1, (layout.baseY - point.y) / layout.graphH));
+                this.setGraphValue(this.graphDrag.type === 'shape' ? 'diffusion' : 'mix', vertical * 100);
+            }
+        };
+        const finish = (event) => {
+            if (!this.graphDrag || this.graphDrag.canvas !== canvas) return;
+            if (this.liveBinding?.context && this.liveBinding.getPlayStateCallback?.()) {
+                this.applySettings(this.liveBinding.context, this.liveBinding.getBypassStateCallback, true);
+            }
+            this.graphDrag = null;
+            if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        };
+        canvas.onpointerup = finish; canvas.onpointercancel = finish;
+    }
+
+    bindEqGraph() {
+        const canvas = this.visual?.eqCanvas;
+        if (!canvas) return;
+        canvas.onpointerdown = (event) => {
+            if (event.button !== 0) return;
+            const point = this.pointerPosition(canvas, event);
+            const handle = this.nearestHandle(this.visual.eqHandles, point.x, point.y);
+            this.graphDrag = { canvas, type: handle?.type || (point.x < canvas.getBoundingClientRect().width / 2 ? 'lowGain' : 'highGain'), pointerId: event.pointerId };
+            canvas.setPointerCapture?.(event.pointerId);
+            event.preventDefault();
+        };
+        canvas.onpointermove = (event) => {
+            if (!this.graphDrag || this.graphDrag.canvas !== canvas) return;
+            const point = this.pointerPosition(canvas, event);
+            const layout = this.visual.eqLayout;
+            const gain = (layout.centerY - point.y) / (layout.graphH / 24);
+            this.setGraphValue(this.graphDrag.type, gain);
+        };
+        const finish = (event) => {
+            if (!this.graphDrag || this.graphDrag.canvas !== canvas) return;
+            this.graphDrag = null;
+            if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        };
+        canvas.onpointerup = finish; canvas.onpointercancel = finish;
     }
 
     bindLiveControls(context, getPlayStateCallback, getBypassStateCallback, updateRangeFillCallback) {
+        this.liveBinding = { context, getPlayStateCallback, getBypassStateCallback };
+        this.updateRangeFillCallback = updateRangeFillCallback || this.updateRangeFillCallback;
         const reverbToggle = document.getElementById('reverb-toggle');
         if (reverbToggle) {
             reverbToggle.onclick = () => {
