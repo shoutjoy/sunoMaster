@@ -25,6 +25,7 @@
     let coverPreviewUrl = '';
     let pendingTransfer = null;
     let transferInProgress = false;
+    let restoreStatePromise = null;
     const cacheRequests = new Map();
     const bridgeProbeRequests = new Map();
 
@@ -66,6 +67,7 @@
     }
 
     function normalizedFile(value, fallbackName, fallbackType) {
+        value = value?.file || value?.blob || value;
         if (!(value instanceof Blob) || !value.size) return null;
         if (value instanceof File) return value;
         return new File([value], fallbackName, { type: value.type || fallbackType });
@@ -80,9 +82,14 @@
     function normalizeIncoming(data) {
         const packageData = data.sourcePackage || data.package || data;
         const source = packageData.source || data.metadata || data;
-        const audioCandidate = packageData.audio?.file || packageData.audioFile || data.audio?.file || data.audioFile || data.file;
-        const coverCandidate = packageData.cover?.file || packageData.coverFile || data.cover?.file || data.coverFile || data.imageFile || data.image;
-        const url = source.url || source.sourceUrl || source.sunoUrl || '';
+        const audioCandidate = packageData.audio?.file || packageData.audio?.blob || packageData.audioFile
+            || data.audio?.file || data.audio?.blob || data.audioFile || data.file;
+        const coverCandidate = packageData.cover?.file || packageData.cover?.blob || packageData.coverFile
+            || packageData.image?.file || packageData.image?.blob || packageData.imageFile
+            || data.cover?.file || data.cover?.blob || data.coverFile
+            || data.image?.file || data.image?.blob || data.imageFile || data.image;
+        const url = source.url || source.sourceUrl || source.sunoUrl || source.songUrl || source.pageUrl
+            || data.url || data.sourceUrl || data.sunoUrl || data.songUrl || data.pageUrl || '';
         return {
             source: {
                 guid: extractGuid(url, source.guid || data.guid),
@@ -335,7 +342,24 @@
         state.masteredFile = null;
         state.fingerprint = '';
         await writeState();
-        setStatus('Suno 원본 음원, 커버 및 URL 정보를 안전하게 보관했습니다.', 'success');
+        const received = [
+            incoming.audioFile && '오디오',
+            incoming.coverFile && '이미지',
+            incoming.source.url && 'URL'
+        ].filter(Boolean);
+        setStatus(`Suno ${received.join(' · ') || '원본 정보'}를 안전하게 보관했습니다.`, 'success');
+        window.dispatchEvent(new CustomEvent('jjim-source-package-received', {
+            detail: {
+                source: { ...state.source },
+                audioFile: incoming.audioFile,
+                coverFile: incoming.coverFile
+            }
+        }));
+        if (incoming.audioFile) {
+            window.dispatchEvent(new CustomEvent('jjim-audio-restore', {
+                detail: { file: incoming.audioFile, reason: 'source-package' }
+            }));
+        }
     }
 
     function receiveTargetStatus(event) {
@@ -378,6 +402,25 @@
         else if (event.data.type === 'cache-error') request.reject(event.data.message);
     }
 
+    function restoreStoredState() {
+        if (restoreStatePromise) return restoreStatePromise;
+        restoreStatePromise = readState().then(saved => {
+            if (saved) state = { ...state, ...saved, source: { ...state.source, ...saved.source } };
+            render();
+            if (saved?.audioFile) {
+                setStatus('저장된 원곡 전송 패키지를 복원했습니다.', 'success');
+                window.dispatchEvent(new CustomEvent('jjim-audio-restore', {
+                    detail: { file: saved.audioFile, reason: 'stored-package' }
+                }));
+            }
+            return state;
+        }).catch(error => {
+            setStatus(error.message, 'error');
+            throw error;
+        });
+        return restoreStatePromise;
+    }
+
     function bindUi() {
         elements.title = document.getElementById('jjim-source-title');
         elements.url = document.getElementById('jjim-source-url');
@@ -418,14 +461,7 @@
         elements.masteredDialog.addEventListener('click', event => {
             if (event.target === elements.masteredDialog) hideMasteredDialog();
         });
-        readState().then(saved => {
-            if (saved) state = { ...state, ...saved, source: { ...state.source, ...saved.source } };
-            render();
-            if (saved?.audioFile) {
-                setStatus('저장된 원곡 전송 패키지를 복원했습니다.', 'success');
-                window.dispatchEvent(new CustomEvent('jjim-audio-restore', { detail: { file: saved.audioFile } }));
-            }
-        }).catch(error => setStatus(error.message, 'error'));
+        void restoreStoredState().catch(() => {});
     }
 
     window.addEventListener('message', event => {
@@ -434,5 +470,12 @@
         receiveTargetStatus(event);
     });
     window.addEventListener('DOMContentLoaded', bindUi, { once: true });
-    window.jjimHandoff = { registerAudioFile, setMasteredAudio, send, showMasteredDialog, getState: () => state };
+    window.jjimHandoff = {
+        registerAudioFile,
+        setMasteredAudio,
+        send,
+        showMasteredDialog,
+        restoreStoredState,
+        getState: () => state
+    };
 })();
