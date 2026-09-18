@@ -54,6 +54,12 @@ const stemConsoleVisibilitySetting = document.getElementById('setting-show-stem-
 const stemConsoleSection = document.getElementById('stem-console-section');
 const aiPresetVisibilitySetting = document.getElementById('setting-show-ai-presets');
 const aiPresetSection = document.getElementById('ai-100-preset-section');
+const jjimHandoffVisibilitySetting = document.getElementById('setting-show-jjim-handoff');
+const jjimHandoffSettingState = document.getElementById('jjim-handoff-setting-state');
+const jjimHandoffPanel = document.getElementById('jjim-handoff-panel');
+const jjimHandoffToggle = document.getElementById('jjim-handoff-toggle');
+const jjimHandoffContent = document.getElementById('jjim-handoff-content');
+const jjimHandoffChevron = document.getElementById('jjim-handoff-chevron');
 const aiMicroPresetScaleInput = document.getElementById('ai-micro-preset-scale');
 const spectrumBandCountInput = document.getElementById('spectrum-band-count');
 const spectrumBarsBtn = document.getElementById('spectrum-bars-btn');
@@ -64,6 +70,7 @@ const PLAYER_MODE_STORAGE_KEY = 'jd-player-display-mode';
 const EXPORT_PREFIX_STORAGE_KEY = 'jd-export-filename-prefix';
 const STEM_CONSOLE_VISIBLE_STORAGE_KEY = 'jd-show-stem-console';
 const AI_PRESETS_VISIBLE_STORAGE_KEY = 'jd-show-ai-100-presets';
+const JJIM_HANDOFF_VISIBLE_STORAGE_KEY = 'jd-show-jjim-handoff';
 const AI_MICRO_PRESET_SCALE_STORAGE_KEY = 'jd-ai-micro-preset-scale';
 const SPECTRUM_BAND_COUNT_STORAGE_KEY = 'jd-spectrum-band-count';
 const SPECTRUM_VIEW_MODE_STORAGE_KEY = 'jd-spectrum-view-mode';
@@ -195,6 +202,39 @@ if (aiPresetVisibilitySetting) {
     aiPresetVisibilitySetting.onchange = () => {
         applyAiPresetVisibility(aiPresetVisibilitySetting.checked);
         window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
+    };
+}
+
+function applyJjimHandoffVisibility(visible, persist = true) {
+    const shouldShow = Boolean(visible);
+    if (jjimHandoffPanel) jjimHandoffPanel.hidden = !shouldShow;
+    if (jjimHandoffVisibilitySetting) jjimHandoffVisibilitySetting.checked = shouldShow;
+    if (jjimHandoffSettingState) jjimHandoffSettingState.textContent = shouldShow ? 'ON' : 'OFF';
+    if (persist) {
+        try { localStorage.setItem(JJIM_HANDOFF_VISIBLE_STORAGE_KEY, String(shouldShow)); } catch (error) {}
+    }
+}
+
+let shouldShowJjimHandoff = false;
+try {
+    shouldShowJjimHandoff = localStorage.getItem(JJIM_HANDOFF_VISIBLE_STORAGE_KEY) === 'true';
+} catch (error) {}
+applyJjimHandoffVisibility(shouldShowJjimHandoff, false);
+
+if (jjimHandoffVisibilitySetting) {
+    jjimHandoffVisibilitySetting.onchange = () => {
+        applyJjimHandoffVisibility(jjimHandoffVisibilitySetting.checked);
+        window.setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
+    };
+}
+
+if (jjimHandoffToggle && jjimHandoffContent) {
+    jjimHandoffToggle.onclick = () => {
+        const collapsed = !jjimHandoffContent.classList.contains('hidden');
+        setPanelCollapsed(jjimHandoffContent, collapsed, {
+            button: jjimHandoffToggle,
+            icon: jjimHandoffChevron
+        });
     };
 }
 
@@ -725,6 +765,11 @@ function setAllPanelsCollapsed(collapsed) {
             button: document.getElementById('audio-analysis-toggle'),
             icon: document.getElementById('audio-analysis-chevron')
         }
+    );
+    setPanelCollapsed(
+        jjimHandoffContent,
+        collapsed,
+        { button: jjimHandoffToggle, icon: jjimHandoffChevron }
     );
     setPanelCollapsed(
         document.getElementById('project-collapse-content'),

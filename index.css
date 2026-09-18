@@ -28,6 +28,14 @@ body.light-mode {
 .player-settings-menu span { display: flex; min-width: 0; flex-direction: column; }
 .player-settings-menu b { color: #e2e8f0; font-size: 0.67rem; }
 .player-settings-menu small { margin-top: 0.08rem; color: #64748b; font-size: 0.53rem; }
+.player-settings-menu .feature-toggle-setting { position: relative; }
+.player-settings-menu .feature-toggle-setting > input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.player-settings-menu .feature-toggle-copy { flex: 1 1 auto; }
+.player-settings-menu .feature-toggle-switch { display: flex; width: 2.65rem; min-width: 2.65rem; height: 1.35rem; flex: 0 0 2.65rem; flex-direction: row; align-items: center; justify-content: flex-start; border: 1px solid #475569; border-radius: 999px; background: #111827; padding: 0.12rem; transition: 0.18s ease; }
+.player-settings-menu .feature-toggle-switch > span { display: grid; width: 1.05rem; min-width: 1.05rem; height: 1.05rem; place-items: center; border-radius: 999px; background: #475569; color: #e2e8f0; font-size: 0.38rem; font-weight: 900; line-height: 1; transition: 0.18s ease; }
+.player-settings-menu .feature-toggle-setting > input:checked ~ .feature-toggle-switch { justify-content: flex-end; border-color: #38bdf8; background: rgba(3, 105, 161, 0.34); }
+.player-settings-menu .feature-toggle-setting > input:checked ~ .feature-toggle-switch > span { background: #0ea5e9; color: white; }
+.player-settings-menu .feature-toggle-setting:focus-within { outline: 1px solid #38bdf8; outline-offset: -1px; }
 .player-settings-divider { height: 1px; margin: 0.35rem 0.2rem; background: #1f2937; }
 .export-prefix-setting { padding: 0 0.45rem 0.4rem; }
 .export-prefix-setting > label { display: flex; align-items: flex-start; padding: 0.25rem 0 0.4rem; cursor: default; }
@@ -1495,10 +1503,15 @@ body.player-float .global-player-shell .waveform-transport { border-color: rgba(
 body.player-float .global-player-shell .section-repeat-editor { padding: 0.45rem 0.6rem 0.2rem; }
 
 .jjim-handoff-panel { margin-top: .85rem; border: 1px solid rgba(56, 189, 248, .25); border-radius: .9rem; background: linear-gradient(145deg, rgba(8, 47, 73, .28), rgba(15, 23, 42, .68)); padding: .8rem; }
-.jjim-handoff-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: .65rem; }
-.jjim-handoff-heading h3 { color: #e0f2fe; font-size: .72rem; font-weight: 900; letter-spacing: .03em; }
-.jjim-handoff-heading h3 i { margin-right: .25rem; color: #38bdf8; }
-.jjim-handoff-heading p, .jjim-handoff-note { margin-top: .18rem; color: #64748b; font-size: .58rem; line-height: 1.45; }
+.jjim-handoff-heading { display: flex; width: 100%; align-items: flex-start; justify-content: space-between; gap: .65rem; text-align: left; }
+.jjim-handoff-heading-copy { display: flex; min-width: 0; flex-direction: column; }
+.jjim-handoff-heading:hover .jjim-handoff-title { color: #7dd3fc; }
+.jjim-handoff-heading-actions { display: flex; flex: 0 0 auto; align-items: center; gap: .45rem; }
+.jjim-handoff-heading-actions > i { color: #64748b; font-size: .6rem; }
+.jjim-handoff-content.hidden { display: none; }
+.jjim-handoff-title { color: #e0f2fe; font-size: .72rem; font-weight: 900; letter-spacing: .03em; }
+.jjim-handoff-title i { margin-right: .25rem; color: #38bdf8; }
+.jjim-handoff-description, .jjim-handoff-note { margin-top: .18rem; color: #64748b; font-size: .58rem; line-height: 1.45; }
 .jjim-package-badge { flex: 0 0 auto; border: 1px solid #334155; border-radius: 999px; padding: .18rem .45rem; color: #94a3b8; font-size: .52rem; font-weight: 800; }
 .jjim-package-badge.is-ready { border-color: rgba(52, 211, 153, .45); background: rgba(16, 185, 129, .12); color: #6ee7b7; }
 .jjim-source-grid { display: grid; grid-template-columns: 4.1rem minmax(0, 1fr); gap: .65rem; margin-top: .7rem; }
@@ -1521,7 +1534,7 @@ body.player-float .global-player-shell .section-repeat-editor { padding: 0.45rem
 .jjim-handoff-actions button:hover:not(:disabled) { transform: translateY(-1px); background: rgba(3, 105, 161, .38); }
 .jjim-handoff-actions button:disabled { cursor: not-allowed; filter: grayscale(.5); opacity: .38; }
 body.light-mode .jjim-handoff-panel { border-color: #bae6fd; background: #f0f9ff; }
-body.light-mode .jjim-handoff-heading h3, body.light-mode .jjim-source-fields input { color: #0f172a; }
+body.light-mode .jjim-handoff-title, body.light-mode .jjim-source-fields input { color: #0f172a; }
 body.light-mode .jjim-source-fields input, body.light-mode .jjim-cover-picker, body.light-mode .jjim-handoff-status { border-color: #cbd5e1; background: #fff; }
 .mastered-handoff-dialog { position: fixed; z-index: 250; inset: 0; display: grid; place-items: center; background: rgba(2, 6, 23, .78); padding: 1rem; backdrop-filter: blur(8px); }
 .mastered-handoff-dialog.hidden { display: none; }
