@@ -530,6 +530,7 @@
         elements.coverInput = document.getElementById('jjim-cover-input');
         elements.srtStatus = document.getElementById('jjim-srt-status');
         elements.srtFilename = document.getElementById('jjim-srt-filename');
+        elements.srtInput = document.getElementById('jjim-srt-input');
         elements.status = document.getElementById('jjim-handoff-status');
         elements.badge = document.getElementById('jjim-package-badge');
         elements.track = document.getElementById('jjim-send-track');
@@ -555,6 +556,21 @@
             state.coverFile = file;
             await writeState();
             setStatus('전송할 커버 이미지를 보관했습니다.', 'success');
+        });
+        elements.srtInput.addEventListener('change', async () => {
+            const file = elements.srtInput.files?.[0];
+            if (!file) return;
+            if (!/\.(srt|vtt)$/i.test(file.name)) {
+                elements.srtInput.value = '';
+                setStatus('가사 파일은 SRT 또는 VTT 형식만 업로드할 수 있습니다.', 'error');
+                return;
+            }
+            const lyricsSrt = await file.text();
+            state.lyricsFile = file;
+            state.source.lyricsSrt = lyricsSrt;
+            state.source.lyrics = srtToPlainText(lyricsSrt);
+            await writeState();
+            setStatus(`가사 SRT를 보관했습니다: ${file.name}`, 'success');
         });
         elements.track.addEventListener('click', () => void send('track', { variant: 'original' }).catch(() => {}));
         elements.album.addEventListener('click', () => void send('album', { variant: 'original' }).catch(() => {}));

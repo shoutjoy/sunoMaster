@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260919-2">
+    <link rel="stylesheet" href="index.css?v=20260919-3">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-14">
 </head>
 
@@ -88,11 +88,6 @@
                         <input id="setting-show-ai-presets" type="checkbox">
                         <span><b>AI 100 Micro Presets</b><small>고급 미세 프리셋 라이브러리 표시 · 기본 숨김</small></span>
                     </label>
-                    <label class="feature-toggle-setting">
-                        <input id="setting-show-jjim-handoff" type="checkbox">
-                        <span class="feature-toggle-copy"><b>JJaIMsae로 보내기</b><small>왼쪽 원곡 전송 패널 표시 · 기본 OFF</small></span>
-                        <span class="feature-toggle-switch" aria-hidden="true"><span id="jjim-handoff-setting-state">OFF</span></span>
-                    </label>
                     <div class="spectrum-band-setting">
                         <label for="ai-micro-preset-scale"><b>AI 100 값 배율</b><small>0.1–2.0 · 기본 0.3</small></label>
                         <input id="ai-micro-preset-scale" type="number" min="0.1" max="2" step="0.05" value="0.3" inputmode="decimal">
@@ -167,45 +162,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <section id="jjim-handoff-panel" class="jjim-handoff-panel" aria-labelledby="jjim-handoff-title" hidden>
-                        <button id="jjim-handoff-toggle" type="button" class="jjim-handoff-heading"
-                            aria-expanded="false" aria-controls="jjim-handoff-content">
-                            <span class="jjim-handoff-heading-copy">
-                                <span id="jjim-handoff-title" class="jjim-handoff-title"><i class="fa-solid fa-paper-plane"></i> 원곡 정보 · JJaIMsae</span>
-                                <span class="jjim-handoff-description">현재 불러온 원곡과 커버·Suno 정보를 그대로 전달합니다.</span>
-                            </span>
-                            <span class="jjim-handoff-heading-actions">
-                                <span id="jjim-package-badge" class="jjim-package-badge">정보 대기</span>
-                                <i id="jjim-handoff-chevron" class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-                            </span>
-                        </button>
-                        <div id="jjim-handoff-content" class="jjim-handoff-content hidden">
-                            <div class="jjim-source-grid">
-                                <label class="jjim-cover-picker" for="jjim-cover-input">
-                                    <img id="jjim-cover-preview" alt="전송할 커버 이미지 미리보기">
-                                    <span id="jjim-cover-placeholder"><i class="fa-regular fa-image"></i> 커버 선택</span>
-                                    <input id="jjim-cover-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
-                                </label>
-                                <div class="jjim-source-fields">
-                                    <label>곡 제목<input id="jjim-source-title" type="text" maxlength="300" placeholder="곡 제목"></label>
-                                    <label>Suno URL<input id="jjim-source-url" type="url" placeholder="https://suno.com/song/..."></label>
-                                    <div id="jjim-srt-status" class="jjim-srt-status" aria-live="polite">
-                                        <span><i class="fa-solid fa-closed-captioning"></i> 가사 SRT</span>
-                                        <strong id="jjim-srt-filename">수신 대기</strong>
-                                    </div>
-                                </div>
-                            </div>
-                            <p id="jjim-handoff-status" class="jjim-handoff-status" role="status" aria-live="polite">
-                                음원을 불러오면 원곡 전송 패키지를 준비합니다.
-                            </p>
-                            <div class="jjim-handoff-actions">
-                                <button id="jjim-send-track" type="button" disabled><i class="fa-solid fa-music"></i> 원곡을 짜임새 곡에 보내기</button>
-                                <button id="jjim-send-album" type="button" disabled><i class="fa-solid fa-compact-disc"></i> 원곡을 싱글앨범에 보내기</button>
-                            </div>
-                            <p class="jjim-handoff-note">이 버튼은 마스터링되지 않은 원곡을 보냅니다. 최종 등록은 내용을 확인한 뒤 직접 실행하세요.</p>
-                        </div>
-                    </section>
 
                     <div id="audio-upload-choice" class="audio-upload-choice hidden" role="dialog" aria-modal="true"
                         aria-labelledby="audio-upload-choice-title">
@@ -1168,6 +1124,46 @@
             </div>
 
         </div>
+
+        <section id="jjim-handoff-panel" class="jjim-handoff-panel jjim-handoff-bottom" aria-labelledby="jjim-handoff-title">
+            <button id="jjim-handoff-toggle" type="button" class="jjim-handoff-heading"
+                aria-expanded="true" aria-controls="jjim-handoff-content">
+                <span class="jjim-handoff-heading-copy">
+                    <span id="jjim-handoff-title" class="jjim-handoff-title"><i class="fa-solid fa-paper-plane"></i> 원곡 정보 · JJaIMsae</span>
+                    <span class="jjim-handoff-description">오디오·가사 SRT·커버·Suno URL을 확인하거나 직접 입력합니다.</span>
+                </span>
+                <span class="jjim-handoff-heading-actions">
+                    <span id="jjim-package-badge" class="jjim-package-badge">정보 대기</span>
+                    <i id="jjim-handoff-chevron" class="fa-solid fa-chevron-up" aria-hidden="true"></i>
+                </span>
+            </button>
+            <div id="jjim-handoff-content" class="jjim-handoff-content">
+                <div class="jjim-source-grid">
+                    <label class="jjim-cover-picker" for="jjim-cover-input">
+                        <img id="jjim-cover-preview" alt="전송할 커버 이미지 미리보기">
+                        <span id="jjim-cover-placeholder"><i class="fa-regular fa-image"></i> 커버 선택</span>
+                        <input id="jjim-cover-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                    </label>
+                    <div class="jjim-source-fields">
+                        <label>곡 제목<input id="jjim-source-title" type="text" maxlength="300" placeholder="곡 제목"></label>
+                        <label>Suno URL<input id="jjim-source-url" type="url" placeholder="https://suno.com/song/..."></label>
+                        <label id="jjim-srt-status" class="jjim-srt-status" for="jjim-srt-input">
+                            <span><i class="fa-solid fa-closed-captioning"></i> 가사 SRT <small>클릭하여 직접 업로드</small></span>
+                            <strong id="jjim-srt-filename">수신 대기</strong>
+                            <input id="jjim-srt-input" type="file" accept=".srt,.vtt,application/x-subrip,text/srt,text/vtt" hidden>
+                        </label>
+                    </div>
+                </div>
+                <p id="jjim-handoff-status" class="jjim-handoff-status" role="status" aria-live="polite">
+                    Suno 전송 정보를 기다리거나 필요한 항목을 직접 입력하세요.
+                </p>
+                <div class="jjim-handoff-actions">
+                    <button id="jjim-send-track" type="button" disabled><i class="fa-solid fa-music"></i> 원곡을 짜임새 곡에 보내기</button>
+                    <button id="jjim-send-album" type="button" disabled><i class="fa-solid fa-compact-disc"></i> 원곡을 싱글앨범에 보내기</button>
+                </div>
+                <p class="jjim-handoff-note">이 버튼은 마스터링되지 않은 원곡을 보냅니다. 최종 등록은 내용을 확인한 뒤 직접 실행하세요.</p>
+            </div>
+        </section>
     </div>
 
     <div id="mastered-handoff-dialog" class="mastered-handoff-dialog hidden" role="dialog" aria-modal="true"
@@ -1197,9 +1193,9 @@
     <script src="effector/limitor/limiter.js?v=20260918-1"></script>
     <script src="effector/Saturation/saturation.js?v=20260918-1"></script>
     <script src="effector/spreaddp/spread.js?v=20260629-1"></script>
-    <script src="UploadeFiles/jjim-handoff.js?v=20260919-3"></script>
+    <script src="UploadeFiles/jjim-handoff.js?v=20260919-4"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260918-2"></script>
-    <script src="index.js?v=20260919-1"></script>
+    <script src="index.js?v=20260919-2"></script>
 </body>
 
 </html>

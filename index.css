@@ -28,14 +28,6 @@ body.light-mode {
 .player-settings-menu span { display: flex; min-width: 0; flex-direction: column; }
 .player-settings-menu b { color: #e2e8f0; font-size: 0.67rem; }
 .player-settings-menu small { margin-top: 0.08rem; color: #64748b; font-size: 0.53rem; }
-.player-settings-menu .feature-toggle-setting { position: relative; }
-.player-settings-menu .feature-toggle-setting > input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.player-settings-menu .feature-toggle-copy { flex: 1 1 auto; }
-.player-settings-menu .feature-toggle-switch { display: flex; width: 2.65rem; min-width: 2.65rem; height: 1.35rem; flex: 0 0 2.65rem; flex-direction: row; align-items: center; justify-content: flex-start; border: 1px solid #475569; border-radius: 999px; background: #111827; padding: 0.12rem; transition: 0.18s ease; }
-.player-settings-menu .feature-toggle-switch > span { display: grid; width: 1.05rem; min-width: 1.05rem; height: 1.05rem; place-items: center; border-radius: 999px; background: #475569; color: #e2e8f0; font-size: 0.38rem; font-weight: 900; line-height: 1; transition: 0.18s ease; }
-.player-settings-menu .feature-toggle-setting > input:checked ~ .feature-toggle-switch { justify-content: flex-end; border-color: #38bdf8; background: rgba(3, 105, 161, 0.34); }
-.player-settings-menu .feature-toggle-setting > input:checked ~ .feature-toggle-switch > span { background: #0ea5e9; color: white; }
-.player-settings-menu .feature-toggle-setting:focus-within { outline: 1px solid #38bdf8; outline-offset: -1px; }
 .player-settings-divider { height: 1px; margin: 0.35rem 0.2rem; background: #1f2937; }
 .export-prefix-setting { padding: 0 0.45rem 0.4rem; }
 .export-prefix-setting > label { display: flex; align-items: flex-start; padding: 0.25rem 0 0.4rem; cursor: default; }
@@ -1503,6 +1495,7 @@ body.player-float .global-player-shell .waveform-transport { border-color: rgba(
 body.player-float .global-player-shell .section-repeat-editor { padding: 0.45rem 0.6rem 0.2rem; }
 
 .jjim-handoff-panel { margin-top: .85rem; border: 1px solid rgba(56, 189, 248, .25); border-radius: .9rem; background: linear-gradient(145deg, rgba(8, 47, 73, .28), rgba(15, 23, 42, .68)); padding: .8rem; }
+.jjim-handoff-bottom { margin-top: 1.25rem; }
 .jjim-handoff-heading { display: flex; width: 100%; align-items: flex-start; justify-content: space-between; gap: .65rem; text-align: left; }
 .jjim-handoff-heading-copy { display: flex; min-width: 0; flex-direction: column; }
 .jjim-handoff-heading:hover .jjim-handoff-title { color: #7dd3fc; }
@@ -1525,9 +1518,11 @@ body.player-float .global-player-shell .section-repeat-editor { padding: 0.45rem
 .jjim-source-fields label { color: #94a3b8; font-size: .54rem; font-weight: 800; }
 .jjim-source-fields input { display: block; width: 100%; margin-top: .16rem; border: 1px solid #334155; border-radius: .42rem; background: #080c14; padding: .38rem .48rem; color: #e2e8f0; font-size: .64rem; outline: none; }
 .jjim-source-fields input:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, .1); }
-.jjim-srt-status { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid #334155; border-radius: .42rem; background: #080c14; padding: .38rem .48rem; color: #64748b; font-size: .56rem; font-weight: 800; }
-.jjim-srt-status span { flex: 0 0 auto; }
+.jjim-srt-status { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid #334155; border-radius: .42rem; background: #080c14; padding: .38rem .48rem; color: #64748b; font-size: .56rem; font-weight: 800; cursor: pointer; transition: border-color .15s, background .15s; }
+.jjim-srt-status:hover { border-color: #38bdf8; background: rgba(8, 47, 73, .22); color: #7dd3fc; }
+.jjim-srt-status span { display: flex; flex: 0 0 auto; align-items: center; gap: .2rem; }
 .jjim-srt-status span i { margin-right: .22rem; }
+.jjim-srt-status span small { color: #475569; font-size: .48rem; font-weight: 700; }
 .jjim-srt-status strong { min-width: 0; overflow: hidden; color: #94a3b8; font-size: .54rem; text-overflow: ellipsis; white-space: nowrap; }
 .jjim-srt-status.is-ready { border-color: rgba(52, 211, 153, .45); background: rgba(16, 185, 129, .08); color: #6ee7b7; }
 .jjim-srt-status.is-ready strong { color: #a7f3d0; }
