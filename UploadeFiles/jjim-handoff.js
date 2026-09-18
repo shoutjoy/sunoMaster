@@ -16,6 +16,7 @@
         schemaVersion: 1,
         source: {},
         audioFile: null,
+        lyricsFile: null,
         coverFile: null,
         masteredFile: null,
         fingerprint: '',
@@ -26,6 +27,7 @@
     let pendingTransfer = null;
     let transferInProgress = false;
     let restoreStatePromise = null;
+    let sourceReceiveQueue = Promise.resolve();
     const cacheRequests = new Map();
     const bridgeProbeRequests = new Map();
 
@@ -73,6 +75,34 @@
         return new File([value], fallbackName, { type: value.type || fallbackType });
     }
 
+    function inferIncomingFileKind(file, hint = '') {
+        if (!(file instanceof Blob)) return '';
+        const name = `${file.name || ''} ${hint || ''}`.toLowerCase();
+        const type = String(file.type || '').toLowerCase();
+        if (type.startsWith('audio/') || /audio-file|\.(m4a|mp4|aac|mp3|wav|flac|ogg|opus|aiff?)(?:\s|$)/i.test(name)) return 'audio';
+        if (type.startsWith('image/') || /image-file|cover-file|\.(png|jpe?g|webp|gif|avif)(?:\s|$)/i.test(name)) return 'image';
+        if (type === 'application/x-subrip' || type === 'text/srt' || /lyrics-file|srt-file|subtitle-file|\.(srt|vtt)(?:\s|$)/i.test(name)) return 'lyrics';
+        return '';
+    }
+
+    function firstText(...values) {
+        return values.find(value => typeof value === 'string' && value.trim()) || '';
+    }
+
+    function srtToPlainText(value) {
+        return String(value || '')
+            .replace(/^\uFEFF/, '')
+            .split(/\r?\n/)
+            .filter(line => {
+                const trimmed = line.trim();
+                return trimmed
+                    && !/^\d+$/.test(trimmed)
+                    && !/^\d{1,2}:\d{2}:\d{2}[,.]\d{3}\s+-->\s+\d{1,2}:\d{2}:\d{2}[,.]\d{3}/.test(trimmed)
+                    && !/^WEBVTT$/i.test(trimmed);
+            })
+            .join('\n');
+    }
+
     function extractGuid(url, explicitGuid = '') {
         if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(explicitGuid)) return explicitGuid;
         const match = String(url || '').match(/(?:song|songs)\/([0-9a-f-]{36})/i);
@@ -82,25 +112,66 @@
     function normalizeIncoming(data) {
         const packageData = data.sourcePackage || data.package || data;
         const source = packageData.source || data.metadata || data;
+        const genericCandidate = normalizedFile(
+            data.file || packageData.file,
+            data.filename || packageData.filename || 'suno-transfer-file',
+            data.mimeType || packageData.mimeType || 'application/octet-stream'
+        );
+        const genericKind = inferIncomingFileKind(
+            genericCandidate,
+            `${data.type || ''} ${data.filename || packageData.filename || ''}`
+        );
         const audioCandidate = packageData.audio?.file || packageData.audio?.blob || packageData.audioFile
-            || data.audio?.file || data.audio?.blob || data.audioFile || data.file;
+            || data.audio?.file || data.audio?.blob || data.audioFile
+            || (genericKind === 'audio' ? genericCandidate : null);
         const coverCandidate = packageData.cover?.file || packageData.cover?.blob || packageData.coverFile
             || packageData.image?.file || packageData.image?.blob || packageData.imageFile
             || data.cover?.file || data.cover?.blob || data.coverFile
-            || data.image?.file || data.image?.blob || data.imageFile || data.image;
-        const url = source.url || source.sourceUrl || source.sunoUrl || source.songUrl || source.pageUrl
-            || data.url || data.sourceUrl || data.sunoUrl || data.songUrl || data.pageUrl || '';
+            || data.image?.file || data.image?.blob || data.imageFile || data.image
+            || (genericKind === 'image' ? genericCandidate : null);
+        const lyricsCandidate = packageData.lyrics?.file || packageData.lyrics?.blob || packageData.lyricsFile
+            || packageData.srtFile || data.lyrics?.file || data.lyrics?.blob || data.lyricsFile || data.srtFile
+            || (genericKind === 'lyrics' ? genericCandidate : null);
+        const url = firstText(
+            source.url, source.sourceUrl, source.sunoUrl, source.songUrl, source.pageUrl,
+            data.url, data.sourceUrl, data.sunoUrl, data.songUrl, data.pageUrl
+        );
         return {
             source: {
                 guid: extractGuid(url, source.guid || data.guid),
-                title: source.title || data.title || '',
+                title: firstText(source.title, data.title),
                 url,
-                lyrics: source.lyrics || source.lyricsText || data.lyrics || data.lyricsText || '',
+                lyrics: firstText(source.lyrics, source.lyricsText, data.lyrics, data.lyricsText),
                 receivedAt: Date.now()
             },
             audioFile: normalizedFile(audioCandidate, data.filename || 'suno-source.m4a', 'audio/mp4'),
-            coverFile: normalizedFile(coverCandidate, data.imageFilename || 'suno-cover.jpg', 'image/jpeg')
+            coverFile: normalizedFile(coverCandidate, data.imageFilename || data.filename || 'suno-cover.jpg', 'image/jpeg'),
+            lyricsFile: normalizedFile(lyricsCandidate, data.lyricsFilename || data.filename || 'suno-lyrics.srt', 'application/x-subrip')
         };
+    }
+
+    function acknowledgeSourcePackage(event, received, error = '') {
+        if (!event.source?.postMessage) return;
+        const targetOrigin = event.origin === 'null' ? '*' : event.origin;
+        const requestId = event.data?.requestId || event.data?.messageId || event.data?.transferId || '';
+        const sequence = ['audio', 'lyrics', 'image', 'url'];
+        const lastStage = Math.max(...received.map(kind => sequence.indexOf(kind)), -1);
+        const next = error ? '' : (sequence[lastStage + 1] || 'complete');
+        try {
+            event.source.postMessage({
+                source: SOURCE,
+                type: error ? 'source-package-rejected' : 'source-package-accepted',
+                action: 'ack',
+                ack: !error,
+                requestId,
+                accepted: received,
+                next,
+                status: error ? 'error' : 'stored',
+                message: error
+            }, targetOrigin);
+        } catch (postError) {
+            console.warn('Suno 전송 승인 응답을 보내지 못했습니다.', postError);
+        }
     }
 
     function setStatus(message, kind = '') {
@@ -118,6 +189,13 @@
         coverPreviewUrl = state.coverFile ? URL.createObjectURL(state.coverFile) : '';
         elements.preview.src = coverPreviewUrl;
         elements.coverPicker.classList.toggle('has-image', Boolean(coverPreviewUrl));
+        if (elements.srtStatus && elements.srtFilename) {
+            const hasLyrics = Boolean(state.lyricsFile || state.source.lyricsSrt || state.source.lyrics);
+            elements.srtStatus.classList.toggle('is-ready', hasLyrics);
+            elements.srtFilename.textContent = state.lyricsFile?.name
+                || (hasLyrics ? '가사 데이터 수신됨' : '수신 대기');
+            elements.srtFilename.title = elements.srtFilename.textContent;
+        }
         const ready = Boolean(state.audioFile);
         elements.badge.textContent = ready ? '원곡 준비됨' : '정보 대기';
         elements.badge.classList.toggle('is-ready', ready);
@@ -168,12 +246,14 @@
             target: target === 'album' ? 'jjim-album' : 'jjim-upload',
             file,
             coverFile: state.coverFile,
+            lyricsFile: state.lyricsFile,
             guid: state.source.guid || '',
             title,
             albumTitle: title,
             url,
             lyrics: state.source.lyrics || '',
             lyricsText: state.source.lyrics || '',
+            lyricsSrt: state.source.lyricsSrt || '',
             fingerprint: variant === 'mastered' ? state.fingerprint : '',
             sourceAudioName: state.audioFile?.name || '',
             variant,
@@ -230,12 +310,14 @@
                 target: payload.target,
                 file: payload.file,
                 imageFile: payload.coverFile,
+                lyricsFile: payload.lyricsFile,
                 filename: payload.file.name,
                 guid: payload.guid,
                 title: payload.title,
                 albumTitle: payload.albumTitle,
                 url: payload.url,
                 lyricsText: payload.lyricsText,
+                lyricsSrt: payload.lyricsSrt,
                 fingerprint: payload.fingerprint,
                 variant: payload.variant,
                 mastered: payload.mastered,
@@ -333,26 +415,44 @@
     async function receiveSourcePackage(event) {
         if (!ACCEPTED_SOURCE_ORIGINS.has(event.origin)) return;
         if (event.origin !== location.origin && event.source !== window.opener) return;
-        if (event.data?.source !== 'suno-downloader' || !['audio-file', 'source-package'].includes(event.data?.type)) return;
+        const acceptedTypes = new Set([
+            'audio-file', 'lyrics-file', 'srt-file', 'subtitle-file',
+            'image-file', 'cover-file', 'source-url', 'source-package'
+        ]);
+        if (event.data?.source !== 'suno-downloader' || !acceptedTypes.has(event.data?.type)) return;
         if (event.data.type === 'source-package' && ![1, '1'].includes(event.data.schemaVersion)) return;
         const incoming = normalizeIncoming(event.data);
+        if (incoming.lyricsFile) {
+            const lyricsSrt = await incoming.lyricsFile.text();
+            incoming.source.lyricsSrt = lyricsSrt;
+            if (!incoming.source.lyrics) incoming.source.lyrics = srtToPlainText(lyricsSrt);
+        }
         state.source = { ...state.source, ...Object.fromEntries(Object.entries(incoming.source).filter(([, value]) => value !== '')) };
         if (incoming.audioFile) state.audioFile = incoming.audioFile;
+        if (incoming.lyricsFile) state.lyricsFile = incoming.lyricsFile;
         if (incoming.coverFile) state.coverFile = incoming.coverFile;
         state.masteredFile = null;
         state.fingerprint = '';
         await writeState();
         const received = [
-            incoming.audioFile && '오디오',
-            incoming.coverFile && '이미지',
-            incoming.source.url && 'URL'
+            incoming.audioFile && 'audio',
+            incoming.lyricsFile && 'lyrics',
+            incoming.coverFile && 'image',
+            incoming.source.url && 'url'
         ].filter(Boolean);
-        setStatus(`Suno ${received.join(' · ') || '원본 정보'}를 안전하게 보관했습니다.`, 'success');
+        const receivedLabels = received.map(kind => ({
+            audio: '오디오',
+            lyrics: '가사 SRT',
+            image: '이미지',
+            url: 'URL'
+        })[kind]);
+        setStatus(`Suno ${receivedLabels.join(' · ') || '원본 정보'}를 안전하게 보관했습니다.`, 'success');
         window.dispatchEvent(new CustomEvent('jjim-source-package-received', {
             detail: {
                 source: { ...state.source },
                 audioFile: incoming.audioFile,
-                coverFile: incoming.coverFile
+                coverFile: incoming.coverFile,
+                lyricsFile: incoming.lyricsFile
             }
         }));
         if (incoming.audioFile) {
@@ -360,6 +460,7 @@
                 detail: { file: incoming.audioFile, reason: 'source-package' }
             }));
         }
+        acknowledgeSourcePackage(event, received);
     }
 
     function receiveTargetStatus(event) {
@@ -427,6 +528,8 @@
         elements.preview = document.getElementById('jjim-cover-preview');
         elements.coverPicker = elements.preview?.closest('.jjim-cover-picker');
         elements.coverInput = document.getElementById('jjim-cover-input');
+        elements.srtStatus = document.getElementById('jjim-srt-status');
+        elements.srtFilename = document.getElementById('jjim-srt-filename');
         elements.status = document.getElementById('jjim-handoff-status');
         elements.badge = document.getElementById('jjim-package-badge');
         elements.track = document.getElementById('jjim-send-track');
@@ -465,7 +568,12 @@
     }
 
     window.addEventListener('message', event => {
-        void receiveSourcePackage(event).catch(error => setStatus(error.message, 'error'));
+        sourceReceiveQueue = sourceReceiveQueue
+            .then(() => receiveSourcePackage(event))
+            .catch(error => {
+                setStatus(error.message, 'error');
+                acknowledgeSourcePackage(event, [], error.message || '수신 패키지를 저장하지 못했습니다.');
+            });
         receiveCacheStatus(event);
         receiveTargetStatus(event);
     });

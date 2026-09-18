@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260919-1">
+    <link rel="stylesheet" href="index.css?v=20260919-2">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-14">
 </head>
 
@@ -190,6 +190,10 @@
                                 <div class="jjim-source-fields">
                                     <label>곡 제목<input id="jjim-source-title" type="text" maxlength="300" placeholder="곡 제목"></label>
                                     <label>Suno URL<input id="jjim-source-url" type="url" placeholder="https://suno.com/song/..."></label>
+                                    <div id="jjim-srt-status" class="jjim-srt-status" aria-live="polite">
+                                        <span><i class="fa-solid fa-closed-captioning"></i> 가사 SRT</span>
+                                        <strong id="jjim-srt-filename">수신 대기</strong>
+                                    </div>
                                 </div>
                             </div>
                             <p id="jjim-handoff-status" class="jjim-handoff-status" role="status" aria-live="polite">
@@ -1193,7 +1197,7 @@
     <script src="effector/limitor/limiter.js?v=20260918-1"></script>
     <script src="effector/Saturation/saturation.js?v=20260918-1"></script>
     <script src="effector/spreaddp/spread.js?v=20260629-1"></script>
-    <script src="UploadeFiles/jjim-handoff.js?v=20260919-1"></script>
+    <script src="UploadeFiles/jjim-handoff.js?v=20260919-3"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260918-2"></script>
     <script src="index.js?v=20260919-1"></script>
 </body>
