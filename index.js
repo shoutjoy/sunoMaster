@@ -54,6 +54,7 @@ const stemConsoleVisibilitySetting = document.getElementById('setting-show-stem-
 const stemConsoleSection = document.getElementById('stem-console-section');
 const aiPresetVisibilitySetting = document.getElementById('setting-show-ai-presets');
 const aiPresetSection = document.getElementById('ai-100-preset-section');
+const jjimHandoffPanel = document.getElementById('jjim-handoff-panel');
 const jjimHandoffToggle = document.getElementById('jjim-handoff-toggle');
 const jjimHandoffContent = document.getElementById('jjim-handoff-content');
 const jjimHandoffChevron = document.getElementById('jjim-handoff-chevron');
@@ -77,6 +78,11 @@ let spectrumBandCount = DEFAULT_SPECTRUM_BAND_COUNT;
 let spectrumViewMode = 'bars';
 let aiMicroPresetScale = DEFAULT_AI_MICRO_PRESET_SCALE;
 let activeMicroPresetIndex = null;
+
+const masterLoudnessPanel = document.getElementById('master-loudness-panel');
+if (masterLoudnessPanel && jjimHandoffPanel) {
+    masterLoudnessPanel.insertAdjacentElement('afterend', jjimHandoffPanel);
+}
 
 function getStoredPlayerMode() {
     try {
