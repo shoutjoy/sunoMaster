@@ -12,7 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="index.css?v=20260919-3">
+    <link rel="stylesheet" href="index.css?v=20260919-4">
     <link rel="stylesheet" href="UploadeFiles/audio-upload.css?v=20260628-14">
 </head>
 
@@ -729,6 +729,10 @@
                         <canvas id="audio-waveform" class="w-full h-28 block cursor-pointer"></canvas>
                         <div id="waveform-load-message" class="waveform-load-message hidden" role="status" aria-live="polite"></div>
                     </div>
+                    <div id="waveform-lyrics" class="waveform-lyrics hidden" aria-label="시간 동기화 가사" aria-live="polite" aria-atomic="true">
+                        <i class="fa-solid fa-closed-captioning" aria-hidden="true"></i>
+                        <p id="waveform-lyrics-text"></p>
+                    </div>
                     <div id="global-player-shell" class="global-player-shell" data-player-mode="inner">
                     <div class="waveform-transport" aria-label="오디오 재생 컨트롤">
                         <div class="transport-volume">
@@ -1193,9 +1197,9 @@
     <script src="effector/limitor/limiter.js?v=20260918-1"></script>
     <script src="effector/Saturation/saturation.js?v=20260918-1"></script>
     <script src="effector/spreaddp/spread.js?v=20260629-1"></script>
-    <script src="UploadeFiles/jjim-handoff.js?v=20260919-4"></script>
+    <script src="UploadeFiles/jjim-handoff.js?v=20260919-5"></script>
     <script src="UploadeFiles/audio-upload.js?v=20260918-2"></script>
-    <script src="index.js?v=20260919-3"></script>
+    <script src="index.js?v=20260919-4"></script>
 </body>
 
 </html>

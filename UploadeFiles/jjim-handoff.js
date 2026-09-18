@@ -181,6 +181,12 @@
         elements.status.classList.toggle('is-success', kind === 'success');
     }
 
+    function publishLyrics(text = state.source.lyricsSrt || '') {
+        window.dispatchEvent(new CustomEvent('jjim-lyrics-change', {
+            detail: { text, file: state.lyricsFile || null }
+        }));
+    }
+
     function render() {
         if (!elements.title) return;
         if (document.activeElement !== elements.title) elements.title.value = state.source.title || '';
@@ -434,6 +440,7 @@
         state.masteredFile = null;
         state.fingerprint = '';
         await writeState();
+        if (incoming.lyricsFile || incoming.source.lyricsSrt) publishLyrics(incoming.source.lyricsSrt);
         const received = [
             incoming.audioFile && 'audio',
             incoming.lyricsFile && 'lyrics',
@@ -508,6 +515,7 @@
         restoreStatePromise = readState().then(saved => {
             if (saved) state = { ...state, ...saved, source: { ...state.source, ...saved.source } };
             render();
+            publishLyrics(saved?.source?.lyricsSrt || '');
             if (saved?.audioFile) {
                 setStatus('저장된 원곡 전송 패키지를 복원했습니다.', 'success');
                 window.dispatchEvent(new CustomEvent('jjim-audio-restore', {
@@ -570,6 +578,7 @@
             state.source.lyricsSrt = lyricsSrt;
             state.source.lyrics = srtToPlainText(lyricsSrt);
             await writeState();
+            publishLyrics(lyricsSrt);
             setStatus(`가사 SRT를 보관했습니다: ${file.name}`, 'success');
         });
         elements.track.addEventListener('click', () => void send('track', { variant: 'original' }).catch(() => {}));

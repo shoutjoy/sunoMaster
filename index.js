@@ -574,6 +574,8 @@ const waveformCanvas = document.getElementById('audio-waveform');
 const waveformCtx = waveformCanvas ? waveformCanvas.getContext('2d') : null;
 const waveformTime = document.getElementById('waveform-time');
 const waveformLoadMessage = document.getElementById('waveform-load-message');
+const waveformLyrics = document.getElementById('waveform-lyrics');
+const waveformLyricsText = document.getElementById('waveform-lyrics-text');
 const audioUploadChoice = document.getElementById('audio-upload-choice');
 const audioUploadChoiceFile = document.getElementById('audio-upload-choice-file');
 const audioUploadReplaceBtn = document.getElementById('audio-upload-replace');
@@ -591,6 +593,62 @@ const audioTimelineGapPlus = document.getElementById('audio-timeline-gap-plus');
 const audioTimelineGapApplyAll = document.getElementById('audio-timeline-gap-apply-all');
 const compGrBar = document.getElementById('comp-gr-bar');
 const compGrVal = document.getElementById('comp-gr-val');
+
+let timedLyrics = [];
+let activeLyricCueIndex = -2;
+
+function parseSubtitleTimestamp(value) {
+    const match = String(value || '').trim().match(/^(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})$/);
+    if (!match) return Number.NaN;
+    const milliseconds = match[4].padEnd(3, '0').slice(0, 3);
+    return ((Number(match[1] || 0) * 60 * 60) + (Number(match[2]) * 60) + Number(match[3])) + (Number(milliseconds) / 1000);
+}
+
+function parseTimedLyrics(value) {
+    const normalized = String(value || '').replace(/^\uFEFF/, '').replace(/\r/g, '').trim();
+    if (!normalized) return [];
+    const cues = [];
+    normalized.split(/\n{2,}/).forEach(block => {
+        const lines = block.split('\n').map(line => line.trim()).filter(Boolean);
+        const timingIndex = lines.findIndex(line => line.includes('-->'));
+        if (timingIndex < 0) return;
+        const timing = lines[timingIndex].split('-->');
+        const start = parseSubtitleTimestamp(timing[0]);
+        const end = parseSubtitleTimestamp((timing[1] || '').trim().split(/\s+/)[0]);
+        const text = lines.slice(timingIndex + 1)
+            .join('\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .trim();
+        if (Number.isFinite(start) && Number.isFinite(end) && end > start && text) cues.push({ start, end, text });
+    });
+    return cues.sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+function updateTimedLyrics(current = 0, force = false) {
+    if (!waveformLyrics || !waveformLyricsText) return;
+    if (!timedLyrics.length) {
+        waveformLyrics.classList.add('hidden');
+        waveformLyricsText.textContent = '';
+        activeLyricCueIndex = -2;
+        return;
+    }
+    waveformLyrics.classList.remove('hidden');
+    const cueIndex = timedLyrics.findIndex(cue => current >= cue.start && current < cue.end);
+    if (!force && cueIndex === activeLyricCueIndex) return;
+    activeLyricCueIndex = cueIndex;
+    const cue = cueIndex >= 0 ? timedLyrics[cueIndex] : null;
+    waveformLyrics.classList.toggle('is-gap', !cue);
+    waveformLyricsText.textContent = cue?.text || '· · ·';
+}
+
+function setTimedLyrics(value) {
+    timedLyrics = parseTimedLyrics(value);
+    activeLyricCueIndex = -2;
+    updateTimedLyrics(isPlaying && audioCtx ? audioCtx.currentTime - startTime : pausedAt, true);
+}
+
+window.addEventListener('jjim-lyrics-change', event => setTimedLyrics(event.detail?.text || ''));
 
 function setAudioTransportAvailability(enabled) {
     document.querySelectorAll('[data-audio-transport]').forEach((button) => {
@@ -1971,6 +2029,7 @@ function updateWaveformProgress(current = 0) {
     if (waveformTime) waveformTime.innerText = `${formatTime(current)} / ${formatTime(duration)}`;
     drawAudioWaveform(waveformProgress);
     updateAudioTimelinePlayhead(current);
+    updateTimedLyrics(current);
 }
 
 function updateLoopButton() {
