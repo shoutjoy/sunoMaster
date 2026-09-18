@@ -10,6 +10,7 @@ class LimiterEffector {
         this.limiterWorkletUrl = null;
         this.limiterWorkletReady = false;
         this.limiterWorkletContexts = new WeakSet();
+        this.meterSampleBuffers = new WeakMap();
         this.limiterReductionDb = 0;
         this.visual = {
             grHistory: [],
@@ -102,7 +103,7 @@ class LookaheadLimiterProcessor extends AudioWorkletProcessor {
     }
 
     this.blockCount++;
-    if (this.blockCount % 6 === 0) {
+    if (this.blockCount % 24 === 0) {
       const reductionDb = -20 * Math.log10(Math.max(minGain, 0.000001));
       const inputDb = 20 * Math.log10(Math.max(inputPeak, 0.000001));
       const outputDb = 20 * Math.log10(Math.max(outputPeak, 0.000001));
@@ -253,7 +254,11 @@ registerProcessor("lookahead-limiter", LookaheadLimiterProcessor);
 
         const getAnalyserRmsDb = (analyser) => {
             if (!analyser) return -Infinity;
-            const data = new Float32Array(analyser.fftSize);
+            let data = this.meterSampleBuffers.get(analyser);
+            if (!data || data.length !== analyser.fftSize) {
+                data = new Float32Array(analyser.fftSize);
+                this.meterSampleBuffers.set(analyser, data);
+            }
             analyser.getFloatTimeDomainData(data);
             let sum = 0;
             for (let i = 0; i < data.length; i++) sum += data[i] * data[i];

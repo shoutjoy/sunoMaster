@@ -64,13 +64,14 @@ function renderReport(report, file) {
     }));
 }
 
-function runAnalysis(buffer, file, jobId, isCurrentJob) {
-    const workerUrl = new URL('UploadeFiles/audio-analysis.worker.js?v=20260628-6', document.baseURI);
+function runAnalysis(buffer, file, jobId, isCurrentJob, onAnalysis) {
+    const workerUrl = new URL('UploadeFiles/audio-analysis.worker.js?v=20260918-2', document.baseURI);
     const worker = new Worker(workerUrl);
     const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer.getChannelData(index).slice());
     worker.onmessage = ({ data }) => {
         if (!isCurrentJob(jobId)) return worker.terminate();
         renderReport(data, file);
+        onAnalysis?.({ file, report: data, waveformPeaks: data.waveformPeaks || [] });
         setStatus('done', '분석 완료');
         worker.terminate();
     };
@@ -91,7 +92,7 @@ function runAnalysis(buffer, file, jobId, isCurrentJob) {
     return worker;
 }
 
-function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError }) {
+function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onAnalysis, onError }) {
     const dropZone = $('audio-drop-zone');
     const summary = $('audio-analysis-summary');
     const toggle = $('audio-analysis-toggle');
@@ -160,6 +161,7 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
         setExpanded(false);
         setStatus('running', '디코딩 중');
         onLoading?.(file);
+        performance.mark('audio-file-read-start');
 
         try {
             const context = await getAudioContext();
@@ -171,6 +173,9 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
                     reader.onerror = () => reject(reader.error || new Error('파일을 읽지 못했습니다.'));
                     reader.readAsArrayBuffer(file);
                 });
+            performance.mark('audio-file-read-end');
+            performance.measure('audio-file-read', 'audio-file-read-start', 'audio-file-read-end');
+            performance.mark('audio-decode-start');
             const buffer = await new Promise((resolve, reject) => {
                 let settled = false;
                 const complete = (value) => {
@@ -191,11 +196,16 @@ function initAudioUpload({ input, getAudioContext, onLoading, onDecoded, onError
                     fail(error);
                 }
             });
+            performance.mark('audio-decode-end');
+            performance.measure('audio-decode', 'audio-decode-start', 'audio-decode-end');
             if (jobId !== currentJob) return;
+            performance.mark('audio-post-decode-start');
             await onDecoded?.({ file, buffer, batchIndex, batchTotal });
+            performance.mark('audio-post-decode-end');
+            performance.measure('audio-post-decode', 'audio-post-decode-start', 'audio-post-decode-end');
             setStatus('running', '로드 완료 · 분석 중');
             try {
-                activeWorker = runAnalysis(buffer, file, jobId, (id) => id === currentJob);
+                activeWorker = runAnalysis(buffer, file, jobId, (id) => id === currentJob, onAnalysis);
             } catch (analysisError) {
                 // Local file viewers can block Web Workers. The decoded audio is
                 // already usable, so keep the upload successful in that case.

@@ -103,7 +103,7 @@ class SaturationEffector {
         this.loadSettings(this.defaultSettings);
     }
 
-    connect(context, inputNode, getBypassStateCallback) {
+    connect(context, inputNode, getBypassStateCallback, { startVisualizer = true } = {}) {
         this.ensureState();
         const input = context.createGain();
         const dry = context.createGain();
@@ -135,7 +135,7 @@ class SaturationEffector {
 
         this.nodes = { input, dry, wetInput, preTone, shaper, postTone, wet, output, analyser };
         this.applySettings(context, getBypassStateCallback);
-        this.startVisualizerLoop();
+        if (startVisualizer) this.startVisualizerLoop();
         return output;
     }
 
@@ -378,8 +378,10 @@ class SaturationEffector {
 
     startVisualizerLoop() {
         if (this.visualTimer) return;
-        const tick = () => {
-            if (this.getPlayStateCallback?.()) {
+        let lastFrameAt = 0;
+        const tick = (now = 0) => {
+            if (!document.hidden && now - lastFrameAt >= 33 && this.getPlayStateCallback?.()) {
+                lastFrameAt = now;
                 this.visualFrame += 1;
                 this.updateVisualizers();
             }

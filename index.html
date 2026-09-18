@@ -163,6 +163,35 @@
                         </div>
                     </div>
 
+                    <section id="jjim-handoff-panel" class="jjim-handoff-panel" aria-labelledby="jjim-handoff-title">
+                        <div class="jjim-handoff-heading">
+                            <div>
+                                <h3 id="jjim-handoff-title"><i class="fa-solid fa-paper-plane"></i> 원곡 정보 · JJaIMsae</h3>
+                                <p>현재 불러온 원곡과 커버·Suno 정보를 그대로 전달합니다.</p>
+                            </div>
+                            <span id="jjim-package-badge" class="jjim-package-badge">정보 대기</span>
+                        </div>
+                        <div class="jjim-source-grid">
+                            <label class="jjim-cover-picker" for="jjim-cover-input">
+                                <img id="jjim-cover-preview" alt="전송할 커버 이미지 미리보기">
+                                <span id="jjim-cover-placeholder"><i class="fa-regular fa-image"></i> 커버 선택</span>
+                                <input id="jjim-cover-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                            </label>
+                            <div class="jjim-source-fields">
+                                <label>곡 제목<input id="jjim-source-title" type="text" maxlength="300" placeholder="곡 제목"></label>
+                                <label>Suno URL<input id="jjim-source-url" type="url" placeholder="https://suno.com/song/..."></label>
+                            </div>
+                        </div>
+                        <p id="jjim-handoff-status" class="jjim-handoff-status" role="status" aria-live="polite">
+                            음원을 불러오면 원곡 전송 패키지를 준비합니다.
+                        </p>
+                        <div class="jjim-handoff-actions">
+                            <button id="jjim-send-track" type="button" disabled><i class="fa-solid fa-music"></i> 원곡을 짜임새 곡에 보내기</button>
+                            <button id="jjim-send-album" type="button" disabled><i class="fa-solid fa-compact-disc"></i> 원곡을 싱글앨범에 보내기</button>
+                        </div>
+                        <p class="jjim-handoff-note">이 버튼은 마스터링되지 않은 원곡을 보냅니다. 최종 등록은 내용을 확인한 뒤 직접 실행하세요.</p>
+                    </section>
+
                     <div id="audio-upload-choice" class="audio-upload-choice hidden" role="dialog" aria-modal="true"
                         aria-labelledby="audio-upload-choice-title">
                         <div class="audio-upload-choice-card">
@@ -1126,14 +1155,36 @@
         </div>
     </div>
 
-    <script src="effector/EQ/eq.js?v=20260628-10"></script>
+    <div id="mastered-handoff-dialog" class="mastered-handoff-dialog hidden" role="dialog" aria-modal="true"
+        aria-labelledby="mastered-handoff-title">
+        <div class="mastered-handoff-card">
+            <button id="mastered-handoff-close" type="button" class="mastered-handoff-close" aria-label="마스터 전송 창 닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="mastered-handoff-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <h2 id="mastered-handoff-title">마스터링 결과 전송</h2>
+            <p>Mastering Data Execute로 생성된 WAV를 커버·제목·Suno URL·가사와 함께 보냅니다.</p>
+            <div id="mastered-handoff-file" class="mastered-handoff-file">마스터 WAV 준비됨</div>
+            <p id="mastered-handoff-status" class="mastered-handoff-status" role="status" aria-live="polite">
+                보낼 위치를 선택하세요.
+            </p>
+            <div class="mastered-handoff-actions">
+                <button id="jjim-mastered-track" type="button"><i class="fa-solid fa-music"></i> 마스터 곡에 보내기</button>
+                <button id="jjim-mastered-album" type="button"><i class="fa-solid fa-compact-disc"></i> 마스터 싱글앨범에 보내기</button>
+            </div>
+            <small>v210 확장 브리지가 짜임새 폼을 자동으로 채우지만 최종 ‘올리기’ 버튼은 누르지 않습니다.</small>
+        </div>
+    </div>
+
+    <script src="effector/EQ/eq.js?v=20260918-1"></script>
     <script src="effector/reverb/reverb.js?v=20260628-20"></script>
     <script src="effector/Compressor/compressor.js?v=20260628-20"></script>
-    <script src="effector/limitor/limiter.js?v=20260628-8"></script>
-    <script src="effector/Saturation/saturation.js?v=20260628-5"></script>
+    <script src="effector/limitor/limiter.js?v=20260918-1"></script>
+    <script src="effector/Saturation/saturation.js?v=20260918-1"></script>
     <script src="effector/spreaddp/spread.js?v=20260629-1"></script>
-    <script src="UploadeFiles/audio-upload.js?v=20260628-8"></script>
-    <script src="index.js?v=20260629-3"></script>
+    <script src="UploadeFiles/jjim-handoff.js?v=20260918-6"></script>
+    <script src="UploadeFiles/audio-upload.js?v=20260918-2"></script>
+    <script src="index.js?v=20260918-6"></script>
 </body>
 
 </html>

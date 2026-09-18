@@ -431,6 +431,10 @@ let sectionRepeatSeeking = false;
 let isUserSeeking = false; 
 let activeStemIds = [];
 let waveformPeaks = [];
+let masteredWaveformPeaks = [];
+const masteredWaveformCache = new WeakMap();
+const coveringWaveformCache = new WeakMap();
+let waveformRedrawFrame = 0;
 let waveformProgress = 0;
 let waveformLoadingState = null;
 let waveformLoadingFrame = 0;
@@ -443,6 +447,7 @@ let pendingUploadChoiceResolve = null;
 let forceAppendNextUpload = false;
 let timelineRebuildInProgress = false;
 let timelineGapMs = 2000;
+let restoringPersistedAudio = false;
 
 function sanitizeFilenamePart(value) {
     return String(value ?? '').replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').slice(0, 80);
@@ -494,6 +499,11 @@ let levelSplitterNode = null;
 let levelLeftAnalyser = null;
 let levelRightAnalyser = null;
 let levelSilentGain = null;
+let realtimeGraphInputNode = null;
+let realtimeGraphOutputNode = null;
+let realtimeGraphPromise = null;
+let spectrumDataArray = null;
+const analyserSampleBuffers = new WeakMap();
 
 const playBtn = document.getElementById('play-btn');
 const loopBtn = document.getElementById('loop-btn');
@@ -590,7 +600,11 @@ function setLevelMeterChannel(channel, level) {
 
 function readAnalyserLevel(analyser) {
     if (!analyser || !isPlaying) return 0;
-    const samples = new Float32Array(analyser.fftSize);
+    let samples = analyserSampleBuffers.get(analyser);
+    if (!samples || samples.length !== analyser.fftSize) {
+        samples = new Float32Array(analyser.fftSize);
+        analyserSampleBuffers.set(analyser, samples);
+    }
     analyser.getFloatTimeDomainData(samples);
     let sum = 0;
     let peak = 0;
@@ -1016,7 +1030,11 @@ function resetLoudnessStats() {
 
 function getAnalyserMetrics(analyser) {
     if (!analyser) return { energy: 0, peak: 0 };
-    const samples = new Float32Array(analyser.fftSize);
+    let samples = analyserSampleBuffers.get(analyser);
+    if (!samples || samples.length !== analyser.fftSize) {
+        samples = new Float32Array(analyser.fftSize);
+        analyserSampleBuffers.set(analyser, samples);
+    }
     analyser.getFloatTimeDomainData(samples);
     let energy = 0;
     let peak = 0;
@@ -1266,11 +1284,46 @@ initAudioUpload({
         trackName.innerText = `${file.name} 웨이브폼 불러오는 중...`;
         detectorStatus.innerText = '(분석 연산 중)';
     },
-    onDecoded: ({ file, buffer, batchIndex = 0, batchTotal = 1 }) => completeDecodedAudioWithLoading(file, buffer, { batchIndex, batchTotal }),
+    onDecoded: async ({ file, buffer, batchIndex = 0, batchTotal = 1 }) => {
+        await completeDecodedAudioWithLoading(file, buffer, { batchIndex, batchTotal });
+        await window.jjimHandoff?.registerAudioFile(file);
+    },
+    onAnalysis: ({ file, waveformPeaks: analysedPeaks }) => {
+        const clip = audioTimelineClips.find(candidate => candidate.file === file);
+        if (clip) clip.waveformPeaks = analysedPeaks;
+        if (audioTimelineClips.length === 1 && clip === audioTimelineClips[0]) {
+            waveformPeaks = analysedPeaks;
+            drawAudioWaveform(waveformProgress);
+        }
+    },
     onError: (error) => {
         stopWaveformLoading(false, error?.message || '파일 로드 실패');
         console.error('Audio upload failed:', error);
         alert(error.message || '오디오 데이터 디코딩에 실패했습니다. 포맷을 다시 확인해 주세요.');
+    }
+});
+
+window.addEventListener('jjim-audio-restore', async event => {
+    const file = event.detail?.file;
+    if (originalBuffer || restoringPersistedAudio || !(file instanceof Blob) || !file.size) return;
+    restoringPersistedAudio = true;
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        startWaveformLoading(file);
+        const encoded = await file.arrayBuffer();
+        const buffer = await audioCtx.decodeAudioData(encoded.slice(0));
+        audioTimelineClips = [createTimelineClip(file, buffer)];
+        activeTimelineClipIndex = 0;
+        applyDecodedAudioState(file, buffer, { mode: 'replace', resumeAt: 0, resumePlayback: false });
+        waveformPeaks = buildWaveformPeaks(buffer);
+        audioTimelineClips[0].waveformPeaks = waveformPeaks;
+        drawAudioWaveform(0);
+        showWaveformLoadMessage(`${file.name} 파형 복원 완료`, true);
+    } catch (error) {
+        stopWaveformLoading(false, '저장된 원곡 파형 복원 실패');
+        console.error('Persisted audio restore failed:', error);
+    } finally {
+        restoringPersistedAudio = false;
     }
 });
 
@@ -1512,10 +1565,8 @@ function stopWaveformLoading(done = false, message = '') {
 
 function completeDecodedAudioWithLoading(file, buffer, options = {}) {
     const loadingState = waveformLoadingState;
-    const elapsed = loadingState ? performance.now() - loadingState.startedAt : 900;
-    const remaining = Math.max(0, 850 - elapsed);
     return new Promise((resolve) => {
-        window.setTimeout(() => {
+        queueMicrotask(() => {
             if (loadingState && waveformLoadingState !== loadingState) {
                 resolve();
                 return;
@@ -1526,41 +1577,236 @@ function completeDecodedAudioWithLoading(file, buffer, options = {}) {
                     console.error('Audio timeline upload failed:', error);
                 })
                 .finally(resolve);
-        }, remaining);
+        });
     });
 }
 
-function buildWaveformPeaks(buffer, bucketCount = 900) {
+function buildWaveformPeaks(buffer, bucketCount = 2048) {
     if (!buffer) return [];
 
     const channelCount = buffer.numberOfChannels;
     const sampleCount = buffer.length;
-    const blockSize = Math.max(1, Math.floor(sampleCount / bucketCount));
-    const peaks = [];
-
-    for (let i = 0; i < bucketCount; i++) {
-        const start = i * blockSize;
-        const end = Math.min(sampleCount, start + blockSize);
-        let peak = 0;
-
-        for (let ch = 0; ch < channelCount; ch++) {
-            const data = buffer.getChannelData(ch);
-            for (let s = start; s < end; s++) {
-                const value = Math.abs(data[s]);
-                if (value > peak) peak = value;
+    const preciseBucketCount = Math.min(8192, Math.max(2048, bucketCount, Math.ceil(buffer.duration * 32)));
+    const channels = Array.from({ length: channelCount }, (_, channelIndex) => {
+        const data = buffer.getChannelData(channelIndex);
+        const min = new Array(preciseBucketCount).fill(0);
+        const max = new Array(preciseBucketCount).fill(0);
+        for (let bucket = 0; bucket < preciseBucketCount; bucket++) {
+            const start = Math.floor((bucket / preciseBucketCount) * sampleCount);
+            const end = Math.max(start + 1, Math.floor(((bucket + 1) / preciseBucketCount) * sampleCount));
+            let low = 1;
+            let high = -1;
+            for (let sample = start; sample < Math.min(sampleCount, end); sample++) {
+                const value = data[sample];
+                if (value < low) low = value;
+                if (value > high) high = value;
             }
+            min[bucket] = low <= high ? low : 0;
+            max[bucket] = low <= high ? high : 0;
         }
+        return { min, max };
+    });
+    return { version: 2, bucketCount: preciseBucketCount, channelCount, channels };
+}
 
-        peaks.push(peak);
+function buildWaveformPreview(buffer, bucketCount = 2048, samplesPerBucket = 128) {
+    if (!buffer) return [];
+    const channelCount = buffer.numberOfChannels;
+    const sampleCount = buffer.length;
+    const previewBucketCount = Math.min(4096, Math.max(1024, bucketCount, Math.ceil(buffer.duration * 16)));
+    const channels = Array.from({ length: channelCount }, (_, channelIndex) => {
+        const data = buffer.getChannelData(channelIndex);
+        const min = new Array(previewBucketCount).fill(0);
+        const max = new Array(previewBucketCount).fill(0);
+        for (let bucket = 0; bucket < previewBucketCount; bucket++) {
+            const start = Math.floor((bucket / previewBucketCount) * sampleCount);
+            const end = Math.max(start + 1, Math.floor(((bucket + 1) / previewBucketCount) * sampleCount));
+            const stride = Math.max(1, Math.floor((end - start) / samplesPerBucket));
+            let low = 1;
+            let high = -1;
+            for (let sample = start; sample < Math.min(sampleCount, end); sample += stride) {
+                const value = data[sample];
+                if (value < low) low = value;
+                if (value > high) high = value;
+            }
+            const lastValue = data[Math.min(sampleCount - 1, end - 1)] || 0;
+            if (lastValue < low) low = lastValue;
+            if (lastValue > high) high = lastValue;
+            min[bucket] = low <= high ? low : 0;
+            max[bucket] = low <= high ? high : 0;
+        }
+        return { min, max };
+    });
+    return { version: 2, preview: true, bucketCount: previewBucketCount, channelCount, channels };
+}
+
+function hasWaveformEnvelope(value) {
+    return Boolean(value?.channels?.length && value.channels.some(channel => channel?.min?.length && channel?.max?.length));
+}
+
+function drawWaveformEnvelope(ctx, envelope, width, laneTop, laneHeight, color, clipLeft, clipRight, strokeColor = '', lineWidth = 1) {
+    const mins = envelope?.min || [];
+    const maxs = envelope?.max || [];
+    const bucketCount = Math.min(mins.length, maxs.length);
+    if (!bucketCount || clipRight <= clipLeft) return;
+    const centerY = laneTop + laneHeight / 2;
+    const amplitude = laneHeight * 0.43;
+    const pointCount = Math.max(2, Math.min(bucketCount, Math.ceil(width)));
+    const topPoints = [];
+    const bottomPoints = [];
+    for (let point = 0; point < pointCount; point++) {
+        const ratio = point / Math.max(1, pointCount - 1);
+        const bucketStart = Math.min(bucketCount - 1, Math.floor(ratio * bucketCount));
+        const nextRatio = (point + 1) / Math.max(1, pointCount - 1);
+        const bucketEnd = Math.max(bucketStart + 1, Math.min(bucketCount, Math.ceil(nextRatio * bucketCount)));
+        let low = 1;
+        let high = -1;
+        for (let bucket = bucketStart; bucket < bucketEnd; bucket++) {
+            if (mins[bucket] < low) low = mins[bucket];
+            if (maxs[bucket] > high) high = maxs[bucket];
+        }
+        if (low > high) low = high = 0;
+        const x = ratio * width;
+        topPoints.push([x, centerY - high * amplitude]);
+        bottomPoints.push([x, centerY - low * amplitude]);
+    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clipLeft, laneTop, clipRight - clipLeft, laneHeight);
+    ctx.clip();
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0][0], topPoints[0][1]);
+    for (let index = 1; index < topPoints.length; index++) ctx.lineTo(topPoints[index][0], topPoints[index][1]);
+    for (let index = bottomPoints.length - 1; index >= 0; index--) ctx.lineTo(bottomPoints[index][0], bottomPoints[index][1]);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    if (strokeColor) {
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function applyMasterAmplitudeCurve(value) {
+    if (!Number.isFinite(value) || value === 0) return 0;
+    const sign = Math.sign(value);
+    let amplitude = Math.min(1, Math.abs(value));
+
+    if (audioState.saturatorEnabled && audioState.saturator > 0) {
+        const amount = Math.max(0, Number(audioState.saturator) || 0) / 100;
+        const drive = 1 + amount * 3;
+        amplitude = Math.tanh(amplitude * drive) / Math.tanh(drive);
+    }
+    if (audioState.masterSaturation?.enabled) {
+        const mix = Math.max(0, Math.min(1, Number(audioState.masterSaturation.mix) / 100 || 0));
+        const drive = Math.max(1, 1 + (Number(audioState.masterSaturation.drive) || 0) * 0.35);
+        const saturated = Math.tanh(amplitude * drive) / Math.tanh(drive);
+        amplitude = amplitude * (1 - mix) + saturated * mix;
+        amplitude *= Math.pow(10, (Number(audioState.masterSaturation.output) || 0) / 20);
     }
 
-    const maxPeak = Math.max(...peaks, 0.0001);
-    return peaks.map(value => value / maxPeak);
+    let levelDb = 20 * Math.log10(Math.max(1e-7, amplitude));
+    if (audioState.compressor?.enabled) {
+        levelDb += Number(audioState.compressor.inputGain) || 0;
+        const threshold = Number(audioState.compressor.threshold) || -24;
+        const ratio = Math.max(1, Number(audioState.compressor.ratio) || 1);
+        if (levelDb > threshold) levelDb = threshold + (levelDb - threshold) / ratio;
+        levelDb += Number(audioState.compressor.makeup) || 0;
+    }
+    if (audioState.limiter?.enabled) {
+        const threshold = Number(audioState.limiter.threshold) || -1;
+        if (levelDb > threshold) levelDb = threshold + (levelDb - threshold) * 0.035;
+        levelDb += Number(audioState.limiter.outputGain) || 0;
+    }
+    amplitude = Math.pow(10, levelDb / 20) * Math.max(0, Number(audioState.master) || 0) / 100;
+    return sign * Math.min(1, amplitude);
+}
+
+function createMasteredWaveformEnvelope(envelope) {
+    const signature = [
+        audioState.saturatorEnabled, audioState.saturator,
+        audioState.masterSaturation?.enabled, audioState.masterSaturation?.drive,
+        audioState.masterSaturation?.mix, audioState.masterSaturation?.output,
+        audioState.compressor?.enabled, audioState.compressor?.inputGain,
+        audioState.compressor?.threshold, audioState.compressor?.ratio, audioState.compressor?.makeup,
+        audioState.limiter?.enabled, audioState.limiter?.threshold, audioState.limiter?.outputGain,
+        audioState.master
+    ].join('|');
+    const cached = masteredWaveformCache.get(envelope);
+    if (cached?.signature === signature) return cached.envelope;
+    const masteredEnvelope = {
+        min: Array.from(envelope?.min || [], value => applyMasterAmplitudeCurve(value)),
+        max: Array.from(envelope?.max || [], value => applyMasterAmplitudeCurve(value))
+    };
+    masteredWaveformCache.set(envelope, { signature, envelope: masteredEnvelope });
+    return masteredEnvelope;
+}
+
+function createCoveringWaveformEnvelope(rawEnvelope, masteredEnvelope) {
+    if (!rawEnvelope || !masteredEnvelope) return masteredEnvelope || rawEnvelope;
+
+    let rawCache = coveringWaveformCache.get(masteredEnvelope);
+    if (!rawCache) {
+        rawCache = new WeakMap();
+        coveringWaveformCache.set(masteredEnvelope, rawCache);
+    }
+    const cached = rawCache.get(rawEnvelope);
+    if (cached) return cached;
+
+    const rawMins = rawEnvelope.min || [];
+    const rawMaxs = rawEnvelope.max || [];
+    const masterMins = masteredEnvelope.min || [];
+    const masterMaxs = masteredEnvelope.max || [];
+    const rawBucketCount = Math.min(rawMins.length, rawMaxs.length);
+    const masterBucketCount = Math.min(masterMins.length, masterMaxs.length);
+    const bucketCount = rawBucketCount || masterBucketCount;
+    if (!bucketCount) return masteredEnvelope;
+
+    const sampleRange = (values, index, pick) => {
+        if (!values.length) return 0;
+        const start = Math.min(values.length - 1, Math.floor((index / bucketCount) * values.length));
+        const end = Math.max(start + 1, Math.min(values.length, Math.ceil(((index + 1) / bucketCount) * values.length)));
+        let sampled = Number(values[start]) || 0;
+        for (let sourceIndex = start + 1; sourceIndex < end; sourceIndex++) {
+            sampled = pick(sampled, Number(values[sourceIndex]) || 0);
+        }
+        return sampled;
+    };
+    const min = new Array(bucketCount);
+    const max = new Array(bucketCount);
+    for (let index = 0; index < bucketCount; index++) {
+        min[index] = Math.min(sampleRange(rawMins, index, Math.min), sampleRange(masterMins, index, Math.min));
+        max[index] = Math.max(sampleRange(rawMaxs, index, Math.max), sampleRange(masterMaxs, index, Math.max));
+    }
+
+    const coveringEnvelope = { min, max };
+    rawCache.set(rawEnvelope, coveringEnvelope);
+    return coveringEnvelope;
+}
+
+function scheduleWaveformRedraw() {
+    if (waveformRedrawFrame) return;
+    waveformRedrawFrame = requestAnimationFrame(() => {
+        waveformRedrawFrame = 0;
+        drawAudioWaveform(waveformProgress);
+    });
 }
 
 function drawAudioWaveform(progress = waveformProgress) {
     if (!waveformCanvas || !waveformCtx) return;
 
+    const channelCount = hasWaveformEnvelope(waveformPeaks) ? Math.min(2, waveformPeaks.channels.length) : 1;
+    const channelLabel = channelCount > 1 ? '스테레오 오디오 파형, 위 왼쪽 채널, 아래 오른쪽 채널' : '모노 오디오 파형';
+    const masterComparisonLabel = isBypassed ? '' : hasWaveformEnvelope(masteredWaveformPeaks)
+        ? ', 원본과 실제 마스터 WAV 파형 겹쳐 보기'
+        : ', 원본과 마스터 예상 파형 겹쳐 보기';
+    waveformCanvas.setAttribute('aria-label', `${channelLabel}${masterComparisonLabel}`);
+    const desiredCssHeight = channelCount > 1 ? 168 : 124;
+    if (!waveformLoadingState && waveformCanvas.style.height !== `${desiredCssHeight}px`) {
+        waveformCanvas.style.height = `${desiredCssHeight}px`;
+    }
     const rect = waveformCanvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     const width = Math.max(1, Math.round(rect.width * dpr));
@@ -1576,9 +1822,6 @@ function drawAudioWaveform(progress = waveformProgress) {
     const grid = isLight ? 'rgba(71, 85, 105, 0.18)' : 'rgba(148, 163, 184, 0.12)';
     const idle = isLight ? '#94a3b8' : '#334155';
     const played = isLight ? '#0284c7' : '#22d3ee';
-    const centerY = height / 2;
-    const padY = 10 * dpr;
-
     ctx2.clearRect(0, 0, width, height);
     ctx2.fillStyle = bg;
     ctx2.fillRect(0, 0, width, height);
@@ -1599,22 +1842,22 @@ function drawAudioWaveform(progress = waveformProgress) {
     }
 
     const loading = waveformLoadingState;
-    const peaks = loading?.peaks || (waveformPeaks.length ? waveformPeaks : new Array(180).fill(0.02));
-    const barCount = Math.min(peaks.length, Math.floor(width / (3 * dpr)));
-    const step = peaks.length / barCount;
-    const barW = Math.max(1 * dpr, width / barCount - (1 * dpr));
     const playX = Math.max(0, Math.min(width, (loading ? loading.progress : progress) * width));
 
-    for (let i = 0; i < barCount; i++) {
-        const peak = peaks[Math.floor(i * step)] || 0;
-        const x = i * (width / barCount);
-        const loadingPulse = loading ? 0.9 + (0.1 * Math.sin((i * 0.24) + loading.pulse * 6)) : 1;
-        const barH = Math.max(1.5 * dpr, peak * loadingPulse * (height - padY * 2));
-        ctx2.fillStyle = x <= playX ? played : idle;
-        ctx2.fillRect(x, centerY - (barH / 2), barW, barH);
-    }
-
     if (loading) {
+        const peaks = loading.peaks || new Array(180).fill(0.02);
+        const barCount = Math.min(peaks.length, Math.max(1, Math.floor(width / (3 * dpr))));
+        const step = peaks.length / barCount;
+        const barW = Math.max(1 * dpr, width / barCount - dpr);
+        const centerY = height / 2;
+        for (let i = 0; i < barCount; i++) {
+            const peak = peaks[Math.floor(i * step)] || 0;
+            const x = i * (width / barCount);
+            const pulse = 0.9 + (0.1 * Math.sin((i * 0.24) + loading.pulse * 6));
+            const barH = Math.max(1.5 * dpr, peak * pulse * (height - 20 * dpr));
+            ctx2.fillStyle = x <= playX ? played : idle;
+            ctx2.fillRect(x, centerY - barH / 2, barW, barH);
+        }
         const scanGradient = ctx2.createLinearGradient(Math.max(0, playX - 80 * dpr), 0, playX, 0);
         scanGradient.addColorStop(0, 'rgba(34,211,238,0)');
         scanGradient.addColorStop(1, 'rgba(34,211,238,.2)');
@@ -1624,6 +1867,61 @@ function drawAudioWaveform(progress = waveformProgress) {
         ctx2.lineWidth = 2 * dpr;
         ctx2.beginPath(); ctx2.moveTo(playX, 0); ctx2.lineTo(playX, height); ctx2.stroke();
         return;
+    }
+
+    if (hasWaveformEnvelope(waveformPeaks)) {
+        const visibleChannels = waveformPeaks.channels.slice(0, channelCount);
+        const showMasterOverlay = !isBypassed;
+        const laneGap = channelCount > 1 ? 10 * dpr : 0;
+        const laneHeight = (height - laneGap) / channelCount;
+        const hasRenderedMaster = hasWaveformEnvelope(masteredWaveformPeaks);
+        visibleChannels.forEach((envelope, index) => {
+            const laneTop = index * (laneHeight + laneGap);
+            const centerY = laneTop + laneHeight / 2;
+            ctx2.strokeStyle = isLight ? 'rgba(71,85,105,.35)' : 'rgba(100,116,139,.42)';
+            ctx2.lineWidth = dpr;
+            ctx2.beginPath();
+            ctx2.moveTo(0, centerY);
+            ctx2.lineTo(width, centerY);
+            ctx2.stroke();
+            if (showMasterOverlay) {
+                drawWaveformEnvelope(ctx2, envelope, width, laneTop, laneHeight,
+                    isLight ? 'rgba(100,116,139,.24)' : 'rgba(100,116,139,.30)', 0, width,
+                    isLight ? 'rgba(71,85,105,.42)' : 'rgba(148,163,184,.38)', dpr * 0.7);
+                const masteredEnvelope = hasRenderedMaster
+                    ? masteredWaveformPeaks.channels[Math.min(index, masteredWaveformPeaks.channels.length - 1)]
+                    : createMasteredWaveformEnvelope(envelope);
+                const coveringMasterEnvelope = createCoveringWaveformEnvelope(envelope, masteredEnvelope);
+                drawWaveformEnvelope(ctx2, coveringMasterEnvelope, width, laneTop, laneHeight,
+                    isLight ? 'rgba(124,58,237,.24)' : 'rgba(139,92,246,.30)', 0, width,
+                    isLight ? '#7c3aed' : '#c4b5fd', dpr * 1.15);
+            } else {
+                drawWaveformEnvelope(ctx2, envelope, width, laneTop, laneHeight, idle, playX, width);
+                drawWaveformEnvelope(ctx2, envelope, width, laneTop, laneHeight, played, 0, playX);
+            }
+            ctx2.fillStyle = isLight ? '#475569' : '#64748b';
+            ctx2.font = `${9 * dpr}px ui-monospace, monospace`;
+            ctx2.fillText(channelCount > 1 ? (index === 0 ? 'L' : 'R') : 'MONO', 6 * dpr, laneTop + 12 * dpr);
+        });
+        if (showMasterOverlay) {
+            ctx2.font = `bold ${9 * dpr}px ui-monospace, monospace`;
+            const legendY = 13 * dpr;
+            const masterLabel = hasRenderedMaster ? 'MASTER WAV' : 'MASTER';
+            const masterLabelWidth = ctx2.measureText(masterLabel).width;
+            ctx2.fillStyle = isLight ? '#7c3aed' : '#c4b5fd';
+            ctx2.fillText(masterLabel, width - masterLabelWidth - 8 * dpr, legendY);
+            ctx2.fillStyle = isLight ? '#64748b' : '#94a3b8';
+            ctx2.fillText('RAW', width - masterLabelWidth - 42 * dpr, legendY);
+        }
+    } else {
+        const centerY = height / 2;
+        ctx2.strokeStyle = idle;
+        ctx2.setLineDash([4 * dpr, 3 * dpr]);
+        ctx2.beginPath();
+        ctx2.moveTo(0, centerY);
+        ctx2.lineTo(width, centerY);
+        ctx2.stroke();
+        ctx2.setLineDash([]);
     }
 
     ctx2.fillStyle = isLight ? 'rgba(2, 132, 199, 0.08)' : 'rgba(34, 211, 238, 0.12)';
@@ -1637,6 +1935,16 @@ function drawAudioWaveform(progress = waveformProgress) {
     ctx2.stroke();
 
 }
+
+['input', 'change', 'click'].forEach(eventName => {
+    document.addEventListener(eventName, event => {
+        const target = event.target;
+        const changesMasterSound = target?.matches?.('#master-volume, #noise-reducer, #deesser-reducer, #saturator-volume') ||
+            target?.closest?.('#main-master-effects, #eq-panel, #master-saturation-panel, #master-spread-panel');
+        if (changesMasterSound) masteredWaveformPeaks = [];
+        if (!isBypassed && hasWaveformEnvelope(waveformPeaks)) scheduleWaveformRedraw();
+    });
+});
 
 function updateWaveformProgress(current = 0) {
     const duration = originalBuffer ? originalBuffer.duration : 0;
@@ -1948,20 +2256,28 @@ function syncUtilityEffectInput(input, stateKey, valueId, color, enabledKey) {
     if (audioCtx) applyUtilityEffectSettings(audioCtx);
 }
 
-async function compileAudioGraph(context, srcNode) {
+async function compileAudioGraph(context, srcNode, { isolated = false } = {}) {
+    const graphEq = isolated ? new EQEffector(audioState) : eq;
+    const graphSaturation = isolated ? new SaturationEffector(audioState) : saturation;
+    const graphSpread = isolated ? new SpreadEffector(audioState) : spread;
+    const graphReverb = isolated ? new ReverbEffector(audioState) : reverb;
+    const graphCompressor = isolated ? new CompressorEffector(audioState) : compressor;
+    const graphLimiter = isolated ? new LimiterEffector(audioState) : limiter;
+    const graphStemFilters = {};
+    const graphNoiseFilters = { lowCut: null, highCut: null, deEsser: null, waveShaper: null };
+    const graphFrontFilters = { body: null, presence: null, air: null };
     let lastOutputNode = srcNode;
 
     // 1. EQ
-    lastOutputNode = eq.connect(context, lastOutputNode, isBypassed);
+    lastOutputNode = graphEq.connect(context, lastOutputNode, isBypassed);
 
     // 2. Master saturation
-    lastOutputNode = saturation.connect(context, lastOutputNode, () => isBypassed);
+    lastOutputNode = graphSaturation.connect(context, lastOutputNode, () => isBypassed, { startVisualizer: !isolated });
 
     // 3. Stereo spread
-    lastOutputNode = spread.connect(context, lastOutputNode, () => isBypassed);
+    lastOutputNode = graphSpread.connect(context, lastOutputNode, () => isBypassed);
 
     // 4. 20 Channel smart stems
-    stemFilters = {};
     const stemsDisabled = isBypassed || !audioState.stemsEnabled;
     stemRegistry.forEach((stem) => {
         if (activeStemIds.includes(stem.id)) {
@@ -1973,81 +2289,92 @@ async function compileAudioGraph(context, srcNode) {
 
             lastOutputNode.connect(filter);
             lastOutputNode = filter;
-            stemFilters[stem.id] = filter;
+            graphStemFilters[stem.id] = filter;
         }
     });
 
     // 5. Noise reduction
-    noiseFilters.lowCut = context.createBiquadFilter();
-    noiseFilters.lowCut.type = 'highpass';
-    noiseFilters.highCut = context.createBiquadFilter();
-    noiseFilters.highCut.type = 'lowpass';
+    graphNoiseFilters.lowCut = context.createBiquadFilter();
+    graphNoiseFilters.lowCut.type = 'highpass';
+    graphNoiseFilters.highCut = context.createBiquadFilter();
+    graphNoiseFilters.highCut.type = 'lowpass';
 
     const noiseVal = (!isBypassed && audioState.noiseEnabled) ? audioState.noise : 0;
-    noiseFilters.lowCut.frequency.value = isBypassed ? 10 : 10 + (noiseVal * 1.2);
-    noiseFilters.highCut.frequency.value = isBypassed ? 22000 : 22000 - (noiseVal * 120);
+    graphNoiseFilters.lowCut.frequency.value = isBypassed ? 10 : 10 + (noiseVal * 1.2);
+    graphNoiseFilters.highCut.frequency.value = isBypassed ? 22000 : 22000 - (noiseVal * 120);
 
-    lastOutputNode.connect(noiseFilters.lowCut);
-    noiseFilters.lowCut.connect(noiseFilters.highCut);
-    lastOutputNode = noiseFilters.highCut;
+    lastOutputNode.connect(graphNoiseFilters.lowCut);
+    graphNoiseFilters.lowCut.connect(graphNoiseFilters.highCut);
+    lastOutputNode = graphNoiseFilters.highCut;
 
     // 6. De-Esser
-    noiseFilters.deEsser = context.createBiquadFilter();
-    noiseFilters.deEsser.type = 'peaking';
-    noiseFilters.deEsser.frequency.value = 6500; 
-    noiseFilters.deEsser.Q.value = 2.0;          
-    noiseFilters.deEsser.gain.value = (!isBypassed && audioState.deesserEnabled) ? - (audioState.deesser / 100) * 12 : 0;
+    graphNoiseFilters.deEsser = context.createBiquadFilter();
+    graphNoiseFilters.deEsser.type = 'peaking';
+    graphNoiseFilters.deEsser.frequency.value = 6500;
+    graphNoiseFilters.deEsser.Q.value = 2.0;
+    graphNoiseFilters.deEsser.gain.value = (!isBypassed && audioState.deesserEnabled) ? - (audioState.deesser / 100) * 12 : 0;
 
-    lastOutputNode.connect(noiseFilters.deEsser);
-    lastOutputNode = noiseFilters.deEsser;
+    lastOutputNode.connect(graphNoiseFilters.deEsser);
+    lastOutputNode = graphNoiseFilters.deEsser;
 
     // 7. Tubes Harmonics Exciter
-    noiseFilters.waveShaper = context.createWaveShaper();
-    noiseFilters.waveShaper.curve = makeExciterCurve((!isBypassed && audioState.saturatorEnabled) ? audioState.saturator : 0);
-    noiseFilters.waveShaper.oversample = '4x'; 
+    graphNoiseFilters.waveShaper = context.createWaveShaper();
+    graphNoiseFilters.waveShaper.curve = makeExciterCurve((!isBypassed && audioState.saturatorEnabled) ? audioState.saturator : 0);
+    graphNoiseFilters.waveShaper.oversample = '4x';
 
-    lastOutputNode.connect(noiseFilters.waveShaper);
-    lastOutputNode = noiseFilters.waveShaper;
+    lastOutputNode.connect(graphNoiseFilters.waveShaper);
+    lastOutputNode = graphNoiseFilters.waveShaper;
 
     // 8. Reverb
-    lastOutputNode = reverb.connect(context, lastOutputNode, () => isBypassed);
+    lastOutputNode = graphReverb.connect(context, lastOutputNode, () => isBypassed);
 
     // 9. Compressor
-    lastOutputNode = compressor.connect(context, lastOutputNode, () => isBypassed);
+    lastOutputNode = graphCompressor.connect(context, lastOutputNode, () => isBypassed);
 
     // 10. Front depth: a dedicated EQ contour independent of the graphic EQ.
-    frontFilters.body = context.createBiquadFilter();
-    frontFilters.body.type = 'lowshelf';
-    frontFilters.body.frequency.value = 220;
-    frontFilters.presence = context.createBiquadFilter();
-    frontFilters.presence.type = 'peaking';
-    frontFilters.presence.frequency.value = 2800;
-    frontFilters.presence.Q.value = 0.8;
-    frontFilters.air = context.createBiquadFilter();
-    frontFilters.air.type = 'highshelf';
-    frontFilters.air.frequency.value = 6500;
-    lastOutputNode.connect(frontFilters.body);
-    frontFilters.body.connect(frontFilters.presence);
-    frontFilters.presence.connect(frontFilters.air);
-    lastOutputNode = frontFilters.air;
+    graphFrontFilters.body = context.createBiquadFilter();
+    graphFrontFilters.body.type = 'lowshelf';
+    graphFrontFilters.body.frequency.value = 220;
+    graphFrontFilters.presence = context.createBiquadFilter();
+    graphFrontFilters.presence.type = 'peaking';
+    graphFrontFilters.presence.frequency.value = 2800;
+    graphFrontFilters.presence.Q.value = 0.8;
+    graphFrontFilters.air = context.createBiquadFilter();
+    graphFrontFilters.air.type = 'highshelf';
+    graphFrontFilters.air.frequency.value = 6500;
+    const front = isBypassed ? 0 : Number(audioState.front || 0);
+    graphFrontFilters.body.gain.value = -front * 0.015;
+    graphFrontFilters.presence.gain.value = front * 0.06;
+    graphFrontFilters.air.gain.value = front * 0.025;
+    lastOutputNode.connect(graphFrontFilters.body);
+    graphFrontFilters.body.connect(graphFrontFilters.presence);
+    graphFrontFilters.presence.connect(graphFrontFilters.air);
+    lastOutputNode = graphFrontFilters.air;
 
     // 11. Limiter
-    lastOutputNode = await limiter.connect(context, lastOutputNode, () => isBypassed);
+    lastOutputNode = await graphLimiter.connect(context, lastOutputNode, () => isBypassed);
 
     // 12. Stereo pan
-    stereoPannerNode = typeof context.createStereoPanner === 'function' ? context.createStereoPanner() : null;
-    if (stereoPannerNode) {
-        lastOutputNode.connect(stereoPannerNode);
-        lastOutputNode = stereoPannerNode;
+    const graphStereoPannerNode = typeof context.createStereoPanner === 'function' ? context.createStereoPanner() : null;
+    if (graphStereoPannerNode) {
+        graphStereoPannerNode.pan.value = isBypassed ? 0 : Math.max(-1, Math.min(1, Number(audioState.pan || 0) / 100));
+        lastOutputNode.connect(graphStereoPannerNode);
+        lastOutputNode = graphStereoPannerNode;
     }
-    applySpatialSettings(context);
 
     // 13. Master volume out gain
-    masterGainNode = context.createGain();
-    masterGainNode.gain.value = isBypassed ? 1.0 : (audioState.master / 100);
+    const graphMasterGainNode = context.createGain();
+    graphMasterGainNode.gain.value = isBypassed ? 1.0 : (audioState.master / 100);
 
-    lastOutputNode.connect(masterGainNode);
-    return masterGainNode;
+    lastOutputNode.connect(graphMasterGainNode);
+    if (!isolated) {
+        stemFilters = graphStemFilters;
+        noiseFilters = graphNoiseFilters;
+        frontFilters = graphFrontFilters;
+        stereoPannerNode = graphStereoPannerNode;
+        masterGainNode = graphMasterGainNode;
+    }
+    return graphMasterGainNode;
 }
 
 function updateStemsToggleUI() {
@@ -2486,7 +2813,8 @@ function createTimelineClip(file, buffer) {
         fadeInDuration: 1,
         fadeOutEnabled: false,
         fadeOutDuration: 1,
-        settings: captureTimelineSettings()
+        settings: captureTimelineSettings(),
+        waveformPeaks: []
     };
 }
 
@@ -2637,6 +2965,7 @@ async function refreshTimelineAudioBuffer({ keepTime = true, restart = true, sav
     const combined = rebuildAudioTimelineBuffer();
     if (!combined) return;
     originalBuffer = combined;
+    masteredWaveformPeaks = [];
     waveformPeaks = buildWaveformPeaks(combined);
     const target = Math.max(0, Math.min(combined.duration, currentTime));
     pausedAt = target;
@@ -2885,12 +3214,16 @@ function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, 
     currentAudioFileName = audioTimelineClips.length > 1 ? `${audioTimelineClips[0].name.replace(/\.[^/.]+$/, '')}_timeline` : file.name;
     updateExportFilenamePreview();
     originalBuffer = buffer;
+    masteredWaveformPeaks = [];
     sectionRepeatEnabled = false;
     sectionRepeatInitialized = false;
     sectionRepeatStart = 0;
     sectionRepeatEnd = buffer.duration;
     updateSectionRepeatUI(0);
-    waveformPeaks = buildWaveformPeaks(buffer);
+    waveformPeaks = mode === 'append' ? buildWaveformPeaks(buffer) : buildWaveformPreview(buffer);
+    if (audioTimelineClips.length === 1 && audioTimelineClips[0]) {
+        audioTimelineClips[0].waveformPeaks = waveformPeaks;
+    }
     stopWaveformLoading(true, mode === 'append' ? `${file.name} 타임라인에 추가 완료` : `${file.name} 로드 완료`);
     const startAt = Math.max(0, Math.min(buffer.duration, resumeAt || 0));
     updateWaveformProgress(startAt);
@@ -2910,6 +3243,7 @@ function applyDecodedAudioState(file, buffer, { mode = 'replace', resumeAt = 0, 
     });
 
     syncStemsUI();
+    disposeRealtimeAudioGraph();
     playBtn.disabled = false;
     setAudioTransportAvailability(true);
 
@@ -3058,33 +3392,14 @@ if (waveformCanvas) {
 }
 
 async function startPlaybackAt(offset = 0) {
+    await ensureRealtimeAudioGraph();
+    if (sourceNode) {
+        try { sourceNode.onended = null; } catch (error) {}
+        try { sourceNode.disconnect(); } catch (error) {}
+    }
     sourceNode = audioCtx.createBufferSource();
     sourceNode.buffer = originalBuffer;
-
-    const finalizedOutput = await compileAudioGraph(audioCtx, sourceNode);
-    analyserNode = audioCtx.createAnalyser();
-    analyserNode.fftSize = 2048;
-    analyserNode.smoothingTimeConstant = 0.78;
-    analyserNode.minDecibels = SPECTRUM_MIN_DB;
-    analyserNode.maxDecibels = SPECTRUM_MAX_DB;
-
-    finalizedOutput.connect(analyserNode);
-    analyserNode.connect(audioCtx.destination);
-
-    // Read the post-pan left/right channels without adding a second audible path.
-    levelSplitterNode = audioCtx.createChannelSplitter(2);
-    levelLeftAnalyser = audioCtx.createAnalyser();
-    levelRightAnalyser = audioCtx.createAnalyser();
-    levelLeftAnalyser.fftSize = 256;
-    levelRightAnalyser.fftSize = 256;
-    levelSilentGain = audioCtx.createGain();
-    levelSilentGain.gain.value = 0;
-    finalizedOutput.connect(levelSplitterNode);
-    levelSplitterNode.connect(levelLeftAnalyser, 0);
-    levelSplitterNode.connect(levelRightAnalyser, 1);
-    levelLeftAnalyser.connect(levelSilentGain);
-    levelRightAnalyser.connect(levelSilentGain);
-    levelSilentGain.connect(audioCtx.destination);
+    sourceNode.connect(realtimeGraphInputNode);
 
     bindLiveControlTriggers();
 
@@ -3119,6 +3434,65 @@ async function startPlaybackAt(offset = 0) {
         playBtn.innerHTML = `<i class="fa-solid fa-play ml-0.5"></i>`;
         updateWaveformProgress(0);
     };
+}
+
+async function ensureRealtimeAudioGraph() {
+    if (realtimeGraphInputNode && realtimeGraphOutputNode) return realtimeGraphOutputNode;
+    if (realtimeGraphPromise) return realtimeGraphPromise;
+    realtimeGraphPromise = (async () => {
+        performance.mark('audio-graph-build-start');
+        const inputNode = audioCtx.createGain();
+        const finalizedOutput = await compileAudioGraph(audioCtx, inputNode);
+        realtimeGraphInputNode = inputNode;
+        realtimeGraphOutputNode = finalizedOutput;
+        analyserNode = audioCtx.createAnalyser();
+        analyserNode.fftSize = 2048;
+        analyserNode.smoothingTimeConstant = 0.78;
+        analyserNode.minDecibels = SPECTRUM_MIN_DB;
+        analyserNode.maxDecibels = SPECTRUM_MAX_DB;
+
+        finalizedOutput.connect(analyserNode);
+        analyserNode.connect(audioCtx.destination);
+
+        // Read the post-pan left/right channels without adding a second audible path.
+        levelSplitterNode = audioCtx.createChannelSplitter(2);
+        levelLeftAnalyser = audioCtx.createAnalyser();
+        levelRightAnalyser = audioCtx.createAnalyser();
+        levelLeftAnalyser.fftSize = 256;
+        levelRightAnalyser.fftSize = 256;
+        levelSilentGain = audioCtx.createGain();
+        levelSilentGain.gain.value = 0;
+        finalizedOutput.connect(levelSplitterNode);
+        levelSplitterNode.connect(levelLeftAnalyser, 0);
+        levelSplitterNode.connect(levelRightAnalyser, 1);
+        levelLeftAnalyser.connect(levelSilentGain);
+        levelRightAnalyser.connect(levelSilentGain);
+        levelSilentGain.connect(audioCtx.destination);
+
+        performance.mark('audio-graph-build-end');
+        performance.measure('audio-graph-build', 'audio-graph-build-start', 'audio-graph-build-end');
+        return finalizedOutput;
+    })().catch((error) => {
+        disposeRealtimeAudioGraph();
+        throw error;
+    }).finally(() => {
+        realtimeGraphPromise = null;
+    });
+    return realtimeGraphPromise;
+}
+
+function disposeRealtimeAudioGraph() {
+    for (const node of [realtimeGraphInputNode, realtimeGraphOutputNode, analyserNode, levelSplitterNode, levelLeftAnalyser, levelRightAnalyser, levelSilentGain]) {
+        try { node?.disconnect(); } catch (error) {}
+    }
+    realtimeGraphInputNode = null;
+    realtimeGraphOutputNode = null;
+    analyserNode = null;
+    levelSplitterNode = null;
+    levelLeftAnalyser = null;
+    levelRightAnalyser = null;
+    levelSilentGain = null;
+    spectrumDataArray = null;
 }
 
 if (loopBtn) {
@@ -3217,9 +3591,16 @@ function executeBypassRouting(mode) {
             applySpatialSettings();
         }
     }
+    drawAudioWaveform(waveformProgress);
 }
 btnA.onclick = () => executeBypassRouting(true);
 btnB.onclick = () => {
+    if (!hasWaveformEnvelope(waveformPeaks) && originalBuffer) {
+        waveformPeaks = buildWaveformPreview(originalBuffer);
+        if (audioTimelineClips.length === 1 && audioTimelineClips[0]) {
+            audioTimelineClips[0].waveformPeaks = waveformPeaks;
+        }
+    }
     enableMasterProcessors();
     executeBypassRouting(false);
 };
@@ -3261,7 +3642,7 @@ if (exportCancelBtn) {
     };
 }
 
-downloadBtn.onclick = async () => {
+async function executeMasteredExport({ download = true, jjimTarget = null } = {}) {
     if (!originalBuffer || activeExportJob) return;
     const exportFilename = getMasteredExportFilename();
 
@@ -3287,7 +3668,7 @@ downloadBtn.onclick = async () => {
         const offlineSource = offlineCtx.createBufferSource();
         offlineSource.buffer = originalBuffer;
 
-        const offlineOutput = await compileAudioGraph(offlineCtx, offlineSource);
+        const offlineOutput = await compileAudioGraph(offlineCtx, offlineSource, { isolated: true });
         if (job.cancelled) return;
 
         offlineOutput.connect(offlineCtx.destination);
@@ -3306,18 +3687,37 @@ downloadBtn.onclick = async () => {
         if (job.cancelled || activeExportJob !== job) return;
 
         setExportProgress(96, 'WAV 파일 생성 중');
+        masteredWaveformPeaks = buildWaveformPeaks(renderedBuffer);
+        drawAudioWaveform(waveformProgress);
         const wavBlob = convertAudioBufferToWavBlob(renderedBuffer);
         if (job.cancelled || activeExportJob !== job) return;
 
-        const url = URL.createObjectURL(wavBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = exportFilename;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (window.jjimHandoff) {
+            await window.jjimHandoff.setMasteredAudio({
+                blob: wavBlob,
+                filename: exportFilename,
+                metrics: {
+                    duration: renderedBuffer.duration,
+                    sampleRate: renderedBuffer.sampleRate,
+                    channels: renderedBuffer.numberOfChannels
+                }
+            });
+        }
+        if (download) {
+            const url = URL.createObjectURL(wavBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = exportFilename;
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        if (jjimTarget) await window.jjimHandoff?.send(jjimTarget, { variant: 'mastered' });
+        if (download) window.jjimHandoff?.showMasteredDialog();
 
-        setExportProgress(100, 'WAV 내보내기 완료');
-        trackName.innerText = "추출 성공: 파일 저장이 완료되었습니다.";
+        setExportProgress(100, jjimTarget ? '짜임새 전송 준비 완료' : 'WAV 내보내기 완료');
+        trackName.innerText = jjimTarget
+            ? '마스터 WAV를 만들고 짜임새 입력 화면으로 전달했습니다.'
+            : '추출 성공: 파일 저장이 완료되었습니다.';
         activeExportJob = null;
         setDownloadButtonEnabled(Boolean(originalBuffer));
         hideExportProgress(1200);
@@ -3325,11 +3725,13 @@ downloadBtn.onclick = async () => {
         if (job.timer) window.clearInterval(job.timer);
         if (activeExportJob === job) activeExportJob = null;
         setExportProgress(job.lastProgress || 0, 'WAV 내보내기 실패');
-        alert("인코딩 중 에러가 발생했습니다.");
+        alert(err?.message || "인코딩 중 에러가 발생했습니다.");
         setDownloadButtonEnabled(Boolean(originalBuffer));
         hideExportProgress(1600);
     }
-};
+}
+
+downloadBtn.onclick = () => executeMasteredExport({ download: true });
 
 function formatSpectrumFrequency(frequency) {
     if (frequency >= 1000) {
@@ -3497,16 +3899,21 @@ function drawWaveSpectrum(bands, overlay = false) {
     if (!overlay) drawSpectrumFrequencyLabels(bands);
 }
 
-function animateSpectrum() {
+let spectrumLastFrameAt = 0;
+let spectrumIdleDrawn = false;
+function animateSpectrum(now = 0) {
     requestAnimationFrame(animateSpectrum);
+    if (document.hidden || now - spectrumLastFrameAt < 33) return;
+    spectrumLastFrameAt = now;
     updateOutputLevelMeter();
     updateMasterLoudnessMeter();
     if(!canvas || !ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawSpectrumDbScale();
-
     if (!analyserNode || !isPlaying) {
+        if (spectrumIdleDrawn) return;
+        spectrumIdleDrawn = true;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawSpectrumDbScale();
         const plot = getSpectrumPlotRect();
         ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = '#1e293b';
         ctx.moveTo(plot.left, plot.bottom); ctx.lineTo(plot.right, plot.bottom); ctx.stroke();
@@ -3515,15 +3922,17 @@ function animateSpectrum() {
         if(lufsText) lufsText.innerText = "-inf dB";
         if(compGrBar) compGrBar.style.width = "0%";
         if(compGrVal) compGrVal.innerText = "0.0 dB";
-        limiter.updateMeters(getBypassState);
         if(clipLed) clipLed.classList.remove('clip-active');
         return;
     }
+    spectrumIdleDrawn = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawSpectrumDbScale();
 
     const bufferLength = analyserNode.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyserNode.getByteFrequencyData(dataArray);
-    const spectrumBands = collectSpectrumBands(dataArray, spectrumBandCount);
+    if (!spectrumDataArray || spectrumDataArray.length !== bufferLength) spectrumDataArray = new Uint8Array(bufferLength);
+    analyserNode.getByteFrequencyData(spectrumDataArray);
+    const spectrumBands = collectSpectrumBands(spectrumDataArray, spectrumBandCount);
     if (spectrumViewMode === 'wave') {
         drawWaveSpectrum(spectrumBands);
     } else if (spectrumViewMode === 'combo') {
@@ -3752,6 +4161,7 @@ async function restoreAudioTimelineProject(audioTimeline) {
         ? `${clips[0].name.replace(/\.[^/.]+$/, '')}_timeline`
         : clips[0].name;
     originalBuffer = combined;
+    masteredWaveformPeaks = [];
     sectionRepeatEnabled = false;
     sectionRepeatInitialized = false;
     sectionRepeatStart = 0;
@@ -4027,6 +4437,7 @@ if (dbLoadSelect) {
                     audioCtx.decodeAudioData(evt.target.result, function(buffer) {
                         resetLoudnessStats();
                         originalBuffer = buffer;
+                        masteredWaveformPeaks = [];
                         audioTimelineClips = [createTimelineClip({ name: currentAudioFileName }, buffer)];
                         activeTimelineClipIndex = 0;
                         renderAudioTimeline();
@@ -4063,6 +4474,7 @@ if (dbLoadSelect) {
                 currentAudioFileBlob = null;
                 currentAudioFileName = "";
                 originalBuffer = null;
+                masteredWaveformPeaks = [];
                 audioTimelineClips = [];
                 activeTimelineClipIndex = 0;
                 renderAudioTimeline();
@@ -4283,4 +4695,3 @@ if (autosaveIntervalInput) {
         }
     };
 }
-

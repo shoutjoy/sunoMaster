@@ -9,6 +9,11 @@ function round(value, digits = 1) {
 self.onmessage = ({ data }) => {
     const { channels, sampleRate, duration, file } = data;
     const frameSize = Math.max(1, Math.round(sampleRate * 0.05));
+    const waveformBucketCount = Math.min(8192, Math.max(2048, Math.ceil(duration * 32)));
+    const waveformChannels = channels.map(() => ({
+        min: new Float32Array(waveformBucketCount).fill(1),
+        max: new Float32Array(waveformBucketCount).fill(-1)
+    }));
     const frameSquares = [];
     let min = 1;
     let max = -1;
@@ -17,18 +22,34 @@ self.onmessage = ({ data }) => {
     let sum = 0;
     let sampleCount = 0;
     let clippedSamples = 0;
+    let correlationXy = 0;
+    let correlationXx = 0;
+    let correlationYy = 0;
 
-    channels.forEach((channel) => {
+    channels.forEach((channel, channelIndex) => {
         let frameSum = 0;
         let frameCount = 0;
         for (let i = 0; i < channel.length; i += 1) {
             const value = channel[i];
+            const absoluteValue = Math.abs(value);
+            const waveformBucket = Math.min(
+                waveformBucketCount - 1,
+                Math.floor((i / Math.max(1, channel.length)) * waveformBucketCount),
+            );
+            if (value < waveformChannels[channelIndex].min[waveformBucket]) waveformChannels[channelIndex].min[waveformBucket] = value;
+            if (value > waveformChannels[channelIndex].max[waveformBucket]) waveformChannels[channelIndex].max[waveformBucket] = value;
             min = Math.min(min, value);
             max = Math.max(max, value);
-            peak = Math.max(peak, Math.abs(value));
+            peak = Math.max(peak, absoluteValue);
             sum += value;
             sumSquares += value * value;
             sampleCount += 1;
+            if (channelIndex === 1 && channels.length === 2) {
+                const leftValue = channels[0][i] || 0;
+                correlationXy += leftValue * value;
+                correlationXx += leftValue * leftValue;
+                correlationYy += value * value;
+            }
             if (Math.abs(value) >= 0.999) clippedSamples += 1;
             frameSum += value * value;
             frameCount += 1;
@@ -50,21 +71,19 @@ self.onmessage = ({ data }) => {
     const peakDb = toDb(peak);
     const rmsDb = toDb(rms);
     const dcOffset = sum / Math.max(1, sampleCount);
+    waveformChannels.forEach(channel => {
+        for (let index = 0; index < waveformBucketCount; index++) {
+            if (channel.min[index] > channel.max[index]) {
+                channel.min[index] = 0;
+                channel.max[index] = 0;
+            }
+        }
+    });
     const estimatedBitrate = duration > 0 ? (file.size * 8) / duration / 1000 : 0;
     let correlation = null;
 
     if (channels.length === 2) {
-        const left = channels[0];
-        const right = channels[1];
-        let xy = 0;
-        let xx = 0;
-        let yy = 0;
-        for (let i = 0; i < Math.min(left.length, right.length); i += 1) {
-            xy += left[i] * right[i];
-            xx += left[i] * left[i];
-            yy += right[i] * right[i];
-        }
-        correlation = xy / Math.sqrt(Math.max(Number.EPSILON, xx * yy));
+        correlation = correlationXy / Math.sqrt(Math.max(Number.EPSILON, correlationXx * correlationYy));
     }
 
     const advice = [];
@@ -95,6 +114,15 @@ self.onmessage = ({ data }) => {
         dcOffset: round(dcOffset, 5),
         clippedSamples,
         correlation: round(correlation, 2),
+        waveformPeaks: {
+            version: 2,
+            bucketCount: waveformBucketCount,
+            channelCount: channels.length,
+            channels: waveformChannels.map(channel => ({
+                min: Array.from(channel.min),
+                max: Array.from(channel.max)
+            }))
+        },
         advice
     });
 };

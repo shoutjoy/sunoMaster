@@ -20,6 +20,7 @@ class EQEffector {
         this.filters = [];
         this.analyserInput = null;
         this.analyserOutput = null;
+        this.spectrumData = null;
         this.canvas = null;
         this.canvasContext = null;
         this.animationId = 0;
@@ -433,10 +434,16 @@ class EQEffector {
 
     startVisualizer() {
         if (this.animationId) return;
-        const draw = () => {
-            this.drawEQCanvas();
+        let lastFrameAt = 0;
+        const draw = (now = 0) => {
+            const isPlaying = typeof this.getPlayState === "function" && this.getPlayState();
+            if (!document.hidden && isPlaying && now - lastFrameAt >= 33) {
+                lastFrameAt = now;
+                this.drawEQCanvas();
+            }
             this.animationId = requestAnimationFrame(draw);
         };
+        this.drawEQCanvas();
         draw();
     }
 
@@ -599,7 +606,10 @@ class EQEffector {
     drawSpectrum(context, padLeft, padTop, graphWidth, graphHeight) {
         const analyser = this.analyserOutput || this.analyserInput;
         if (!analyser) return;
-        const data = new Uint8Array(analyser.frequencyBinCount);
+        if (!this.spectrumData || this.spectrumData.length !== analyser.frequencyBinCount) {
+            this.spectrumData = new Uint8Array(analyser.frequencyBinCount);
+        }
+        const data = this.spectrumData;
         analyser.getByteFrequencyData(data);
         const nyquist = (analyser.context?.sampleRate || 44100) / 2;
         const points = [];
